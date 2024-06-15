@@ -17,9 +17,10 @@ pub enum LoxErr {
         message: String,
     },
 
-    #[error("Parse Error: [line {line}] {message}")]
+    #[error("Parse Error: [line {line}] at {lexeme}. {message}")]
     Parse{
         line: usize,
+        lexeme: String,
         message: String,
     },
 

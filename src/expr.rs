@@ -2,6 +2,10 @@ use crate::token::{Token, TokenLiteral};
 use std::fmt;
 
 /*
+后缀`*`允许前一个符号或组重复零次或多次
+后缀`+`与此类似，但要求前面的生成式至少出现一次
+后缀`?`表示可选生成式，它之前的生成式可以出现零次或一次，但不能出现多次
+
 expression     → literal
                | unary  // 一元表达式
                | binary     // 二元表达式
@@ -47,6 +51,17 @@ pub struct BinaryExpr {
     pub operator: Token,
     pub right: Box<Expr>,
 }
+
+impl BinaryExpr {
+    pub fn new(left: Expr, operator: Token, right: Expr) -> BinaryExpr {
+        BinaryExpr {
+            left: Box::new(left),
+            operator: operator,
+            right: Box::new(right),
+        }
+    }
+}
+
 impl fmt::Display for BinaryExpr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "({} {} {})", self.operator.lexeme, self.left, self.right)
@@ -57,6 +72,15 @@ impl fmt::Display for BinaryExpr {
 pub struct GroupingExpr {
     pub expression: Box<Expr>,
 }
+
+impl GroupingExpr {
+    pub fn new(expression: Expr) -> GroupingExpr {
+        GroupingExpr {
+            expression: Box::new(expression),
+        }
+    }
+}
+
 impl fmt::Display for GroupingExpr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "(group {})", self.expression)
@@ -67,12 +91,19 @@ impl fmt::Display for GroupingExpr {
 pub struct LiteralExpr {
     pub value: TokenLiteral,
 }
+
+impl LiteralExpr {
+    pub fn new(value: TokenLiteral) -> LiteralExpr {
+        LiteralExpr { value: value }
+    }
+}
 impl fmt::Display for LiteralExpr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.value {
             TokenLiteral::None => write!(f, "nil"),
             TokenLiteral::String(v) => write!(f, "{}", v),
             TokenLiteral::Number(v) => write!(f, "{}", v),
+            TokenLiteral::Bool(v) => write!(f, "{}", v),
         }
     }
 }
@@ -82,6 +113,16 @@ pub struct UnaryExpr {
     pub operator: Token,
     pub right: Box<Expr>,
 }
+
+impl UnaryExpr {
+    pub fn new(operator: Token, right: Expr) -> UnaryExpr {
+        UnaryExpr {
+            operator: operator,
+            right: Box::new(right),
+        }
+    }
+}
+
 impl fmt::Display for UnaryExpr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "({} {})", self.operator.lexeme, self.right)
@@ -97,20 +138,16 @@ mod tests {
 
     #[test]
     fn test_display() {
-        let expression = Expr::Binary(BinaryExpr {
-            left: Box::new(Expr::Unary(UnaryExpr {
-                operator: Token::new(TokenType::Minus, "-".to_string(), TokenLiteral::None, 1),
-                right: Box::new(Expr::Literal(LiteralExpr {
-                    value: TokenLiteral::Number(123.),
-                })),
-            })),
-            operator: Token::new(TokenType::Star, "*".to_string(), TokenLiteral::None, 1),
-            right: Box::new(Expr::Grouping(GroupingExpr {
-                expression: Box::new(Expr::Literal(LiteralExpr {
-                    value: TokenLiteral::Number(45.67),
-                })),
-            })),
-        });
+        let expression = Expr::Binary(BinaryExpr::new(
+            Expr::Unary(UnaryExpr::new(
+                Token::new(TokenType::Minus, "-".to_string(), TokenLiteral::None, 1),
+                Expr::Literal(LiteralExpr::new(TokenLiteral::Number(123.))),
+            )),
+            Token::new(TokenType::Star, "*".to_string(), TokenLiteral::None, 1),
+            Expr::Grouping(GroupingExpr::new(Expr::Literal(LiteralExpr::new(
+                TokenLiteral::Number(45.67),
+            )))),
+        ));
 
         assert_eq!(
             expression.to_string(),
