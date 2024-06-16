@@ -87,19 +87,27 @@ impl fmt::Display for GroupingExpr {
     }
 }
 
+
+/*
+一个表达式树的叶子节点（构成其它表达式的语法原子单位）是字面量。
+字面符号几乎已经是值了，但两者的区别很重要。
+字面量是产生一个值的语法单元。字面量总是出现在用户的源代码中的某个地方。
+而很多值是通过计算产生的，并不存在于代码中的任何地方，这些都不是字面量。
+字面量来自于解析器(parser)领域，而值是一个解释器(interpreter)的概念，是运行时(runtime)世界的一部分。
+*/
 #[derive(Debug, PartialEq, Clone)]
 pub struct LiteralExpr {
-    pub value: TokenLiteral,
+    pub literal: TokenLiteral,
 }
 
 impl LiteralExpr {
-    pub fn new(value: TokenLiteral) -> LiteralExpr {
-        LiteralExpr { value: value }
+    pub fn new(literal: TokenLiteral) -> LiteralExpr {
+        LiteralExpr { literal }
     }
 }
 impl fmt::Display for LiteralExpr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match &self.value {
+        match &self.literal {
             TokenLiteral::None => write!(f, "nil"),
             TokenLiteral::String(v) => write!(f, "{}", v),
             TokenLiteral::Number(v) => write!(f, "{}", v),

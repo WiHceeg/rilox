@@ -103,6 +103,8 @@ impl Scanner {
                     while self.peek() != '\n' && !self.is_at_end() {
                         self.advance();
                     }
+                } else if self.match_char('*') {
+                    self.block_comment()?;
                 } else {
                     self.push_token(TokenType::Slash, TokenLiteral::None);
                 }
@@ -122,6 +124,8 @@ impl Scanner {
         }
         Ok(())
     }
+
+
 
     fn match_char(&mut self, expected: char) -> bool {
         if self.is_at_end() {
@@ -163,6 +167,23 @@ impl Scanner {
         self.tokens.push(Token::new(token_type, text, literal, self.line));
     }
 
+    /*
+        处理类似这样的块注释
+     */
+    fn block_comment(&mut self) -> Result<(), LoxErr>{
+        while self.peek() != '*' && self.peek_next() != '/' {
+            if self.is_at_end() {
+                return Err(LoxErr::Scan { line: self.line, message: "Unterminated block comment.".to_string() });
+            }
+            if self.peek() == '\n' {
+                self.line += 1;
+            }
+            self.advance();
+        }
+        self.advance();
+        self.advance();
+        Ok(())
+    }
     
     fn string(&mut self) -> Result<(), LoxErr>{
         while self.peek() != '"' && !self.is_at_end() {
