@@ -6,7 +6,7 @@ use crate::err::LoxErr;
 pub struct Scanner {
     keywords: std::collections::HashMap<String, TokenType>,
     source: Vec<char>,
-    tokens: Vec<Token>,
+    pub tokens: Vec<Token>,
     start: usize,
     current: usize,
     line: usize,
@@ -42,7 +42,7 @@ impl Scanner {
         }
     }
 
-    fn scan_tokens(&mut self) -> Result<Vec<Token>, LoxErr> {
+    pub fn scan_tokens(&mut self) -> Result<(), LoxErr> {
         // let mut many_err = LoxErr::Many(Vec::new());
         let mut err_vec = Vec::new();
         while !self.is_at_end() {
@@ -59,7 +59,8 @@ impl Scanner {
         }
 
         self.tokens.push(Token::new(TokenType::Eof, String::new(), TokenLiteral::None, self.line));
-        Ok(self.tokens.clone())
+        // Ok(self.tokens.clone())
+        Ok(())
     }
 
     fn scan_one_token(&mut self) -> Result<(), LoxErr> {
@@ -213,7 +214,7 @@ impl Scanner {
                 self.advance();
             }
         }
-        let value_s = self.source[self.start + 1 .. self.current - 1].iter().collect::<String>();
+        let value_s = self.source[self.start .. self.current].iter().collect::<String>();
         self.push_token(TokenType::Number, TokenLiteral::Number(value_s.parse::<f64>().unwrap()));
     }
 
