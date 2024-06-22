@@ -1,4 +1,5 @@
 use crate::err::LoxErr;
+use crate::stmt::Stmt;
 use crate::token::{Token, TokenLiteral};
 use crate::expr::{BinaryExpr, Expr, GroupingExpr, LiteralExpr, UnaryExpr};
 use crate::token_type::TokenType;
@@ -23,18 +24,42 @@ primary        → NUMBER | STRING | "true" | "false" | "nil"
 */
 
 
-pub struct Parser {
-    tokens: Vec<Token>,
+pub struct Parser<'a> {
+    tokens: &'a Vec<Token>,
     current: usize,
 }
 
-impl Parser {
+impl Parser<'_> {
 
-    pub fn parse(&mut self) {
-
+    pub fn parse(&mut self) -> Result<Vec<Stmt>, LoxErr> {
+        let mut statements: Vec<Stmt> = Vec::new();
+        while !self.is_at_end() {
+            statements.push(self.statement()?);
+        }
+        Ok(statements)
     }
+
     fn expression(&mut self) -> Result<Expr, LoxErr> {
         self.equality()
+    }
+
+    fn statement(&mut self) -> Result<Stmt, LoxErr> {
+        if self.matches(&[TokenType::Print]) {
+            return self.print_statement();
+        }
+        self.expression_statement()
+    }
+
+    fn print_statement(&mut self) -> Result<Stmt, LoxErr>{
+        let value = self.expression()?;
+        self.consume(&TokenType::Semicolon, "Expect ';' after value.")?;
+        Ok(Stmt::Print(value))
+    }
+
+    fn expression_statement(&mut self) -> Result<Stmt, LoxErr> {
+        let expr = self.expression()?;
+        self.consume(&TokenType::Semicolon, "Expect ';' after value.")?;
+        Ok(Stmt::Expression(expr))
     }
 
     fn equality(&mut self) -> Result<Expr, LoxErr> {
@@ -177,7 +202,7 @@ impl Parser {
         }
     }
 
-    pub fn new(tokens: Vec<Token>) -> Parser {
+    pub fn new(tokens: &Vec<Token>) -> Parser {
         Parser { tokens, current: 0 }
     }
 }

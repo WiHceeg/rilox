@@ -1,5 +1,7 @@
 
+use rilox::lox::Lox;
 
-fn main()  {
-
+fn main() {
+    let lox = Lox::new();
+    lox.start();
 }

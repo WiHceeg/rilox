@@ -1,31 +1,77 @@
 use crate::expr::{Expr, BinaryExpr, GroupingExpr, LiteralExpr, UnaryExpr};
 use crate::err::LoxErr;
-use crate::token::{Token, TokenLiteral};
+use crate::stmt::Stmt;
+use crate::token::TokenLiteral;
 use crate::token_type::TokenType;
 
 
 pub struct Interpreter{
-
+    pub had_runtime_error: bool,
 }
 
+
 impl Interpreter {
-    fn interpret(&self, expr: &Expr) -> Result<(), LoxErr> {
-        let value = self.evaluate(expr)?;
-        println!("{}", value);
-        Ok(())
+    pub fn new() -> Interpreter {
+        Interpreter {
+            had_runtime_error: false,
+        }
     }
+
+    // pub fn interpret(&self, expr: &Expr) -> Result<(), LoxErr> {
+    //     let value = self.evaluate(expr)?;
+    //     println!("{}", value);
+    //     Ok(())
+    // }
+
+    pub fn interpret(&mut self, statements: &Vec<Stmt>) {
+        for statement in statements {
+            if let Err(lox_err) = self.execute(statement) {
+                println!("{}", lox_err);
+                self.had_runtime_error = true;
+            }
+        }
+    }
+
+
 
     fn evaluate(&self, expr: &Expr) -> Result<TokenLiteral, LoxErr> {
         match expr {
             Expr::Literal(literal_expr) => self.visit_literal_expr(literal_expr),
 
             Expr::Binary(binary_expr) => self.visit_binary_expr(binary_expr),
-            // Expr::Binary(binary_expr) => todo!(),
+
             Expr::Grouping(grouping_expr) => self.visit_grouping_expr(grouping_expr),
             Expr::Unary(unary_expr) => self.visit_unary_expr(unary_expr),
         }
     }
 
+    fn execute(&self, stmt: &Stmt) -> Result<(), LoxErr>{
+        match stmt {
+            Stmt::Expression(_) => self.visit_expression_stmt(stmt)?,
+            Stmt::Print(_) => self.visit_print_stmt(stmt)?,
+        };
+        Ok(())
+    }
+
+    fn visit_expression_stmt(&self, stmt: &Stmt) -> Result<(), LoxErr> {
+        self.evaluate(
+            match stmt {
+                Stmt::Expression(expr) => expr,
+                _ => unreachable!(),
+            }
+        )?;
+        Ok(())
+    }
+
+    fn visit_print_stmt(&self, stmt: &Stmt) -> Result<(), LoxErr> {
+        let tl = self.evaluate(match stmt {
+                Stmt::Print(expr) => expr,
+                _ => unreachable!(),
+            }
+        )?;
+        println!("{}", tl);
+        Ok(())
+    }
 
     fn visit_literal_expr(&self, literal_expr: &LiteralExpr) -> Result<TokenLiteral, LoxErr> {
         Ok(literal_expr.literal.clone())

@@ -65,8 +65,6 @@ impl Scanner {
 
     fn scan_one_token(&mut self) -> Result<(), LoxErr> {
 
-
-
         let c = self.advance();
         
         match c {
