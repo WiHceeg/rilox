@@ -75,8 +75,9 @@ impl Lox {
             self.report_error(scan_err);
         }
 
+        // 解析遇到错误的话，内部会处理
         let mut parser = Parser::new(&scanner.tokens);
-        let statements = parser.parse()?;
+        let statements = parser.parse();
         
         // 解释执行遇到错误的话，内部会处理
         let mut interpreter = Interpreter::new();

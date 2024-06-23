@@ -226,7 +226,14 @@ impl Scanner {
         } else {
             TokenType::Identifier
         };
-        self.push_token(tt, TokenLiteral::None);
+
+        match tt {
+            // Bool 值特殊处理
+            TokenType::False => self.push_token(tt, TokenLiteral::Bool(false)),
+            TokenType::True => self.push_token(tt, TokenLiteral::Bool(true)),
+            _ => self.push_token(tt, TokenLiteral::None),
+        }
+
     }
 
 }

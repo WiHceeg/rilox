@@ -4,6 +4,20 @@ use crate::stmt::Stmt;
 use crate::token::TokenLiteral;
 use crate::token_type::TokenType;
 
+/*
+program        → statement* EOF ;
+
+declaration    → varDecl
+               | statement ;
+
+varDecl        → "var" IDENTIFIER ( "=" expression )? ";" ;
+
+statement      → exprStmt
+               | printStmt ;
+
+exprStmt       → expression ";" ;
+printStmt      → "print" expression ";" ;
+*/
 
 pub struct Interpreter{
     pub had_runtime_error: bool,
@@ -42,6 +56,8 @@ impl Interpreter {
 
             Expr::Grouping(grouping_expr) => self.visit_grouping_expr(grouping_expr),
             Expr::Unary(unary_expr) => self.visit_unary_expr(unary_expr),
+            Expr::Variable(_) => todo!(),
+            
         }
     }
 
@@ -49,6 +65,8 @@ impl Interpreter {
         match stmt {
             Stmt::Expression(_) => self.visit_expression_stmt(stmt)?,
             Stmt::Print(_) => self.visit_print_stmt(stmt)?,
+            Stmt::Var { name, initializer } => todo!(),
+            
         };
         Ok(())
     }
@@ -71,6 +89,10 @@ impl Interpreter {
         )?;
         println!("{}", tl);
         Ok(())
+    }
+
+    fn visit_var_stmt(&self, stmt: &Stmt) -> Result<(), LoxErr> {
+        todo!()
     }
 
     fn visit_literal_expr(&self, literal_expr: &LiteralExpr) -> Result<TokenLiteral, LoxErr> {

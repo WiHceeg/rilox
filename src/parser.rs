@@ -1,7 +1,8 @@
 use crate::err::LoxErr;
 use crate::stmt::Stmt;
 use crate::token::{Token, TokenLiteral};
-use crate::expr::{BinaryExpr, Expr, GroupingExpr, LiteralExpr, UnaryExpr};
+use crate::expr::Expr;
+use crate::expr::{BinaryExpr, GroupingExpr, LiteralExpr, UnaryExpr, Variable};
 use crate::token_type::TokenType;
 
 
@@ -19,8 +20,11 @@ term           → factor ( ( "-" | "+" ) factor )* ;     // term 项，项之�
 factor         → unary ( ( "/" | "*" ) unary )* ;       // factor 因子，因子之间通常通过乘法或除法连接
 unary          → ( "!" | "-" ) unary
                | primary ;
-primary        → NUMBER | STRING | "true" | "false" | "nil"
-               | "(" expression ")" ;
+primary        → "true" | "false" | "nil"
+               | NUMBER | STRING
+               | "(" expression ")"
+               | IDENTIFIER ;
+
 */
 
 
@@ -31,12 +35,28 @@ pub struct Parser<'a> {
 
 impl Parser<'_> {
 
-    pub fn parse(&mut self) -> Result<Vec<Stmt>, LoxErr> {
+    pub fn parse(&mut self) -> Vec<Stmt> {
         let mut statements: Vec<Stmt> = Vec::new();
         while !self.is_at_end() {
-            statements.push(self.statement()?);
+            match self.declaration() {
+                Ok(stmt) => statements.push(stmt),
+
+                // 原版是在 declaration 处理错误
+                Err(lox_err) => {
+                    println!("{}", lox_err);
+                    self.synchronize();
+                }
+            }            
         }
-        Ok(statements)
+        statements
+    }
+
+    fn declaration(&mut self) -> Result<Stmt, LoxErr> {
+        if self.matches(&[TokenType::Var]) {
+            self.var_declaration()
+        } else {
+            self.statement()
+        }
     }
 
     fn expression(&mut self) -> Result<Expr, LoxErr> {
@@ -48,12 +68,24 @@ impl Parser<'_> {
             return self.print_statement();
         }
         self.expression_statement()
-    }
+    }  
 
     fn print_statement(&mut self) -> Result<Stmt, LoxErr>{
         let value = self.expression()?;
         self.consume(&TokenType::Semicolon, "Expect ';' after value.")?;
         Ok(Stmt::Print(value))
+    }
+
+    fn var_declaration(&mut self) -> Result<Stmt, LoxErr> {
+        let name = self.consume(&TokenType::Identifier, "Expect variable name.")?.clone();
+        
+        let initializer: Option<Expr> = if self.matches(&[TokenType::Equal]) {
+            Some(self.expression()?)
+        } else {
+            None
+        };
+        self.consume(&TokenType::Semicolon, "Expect ';' after variable declaration.");
+        Ok(Stmt::Var { name: name, initializer: initializer })
     }
 
     fn expression_statement(&mut self) -> Result<Stmt, LoxErr> {
@@ -124,6 +156,10 @@ impl Parser<'_> {
                 Ok(Expr::Literal(LiteralExpr::new(self.previous().literal.clone())))
             }
 
+            TokenType::Identifier => {
+                Ok(Expr::Variable(Variable::new(self.previous().clone())))
+            }
+
             TokenType::LeftParen => {
                 self.advance();
                 let expr = self.expression()?;
@@ -186,6 +222,7 @@ impl Parser<'_> {
         &self.tokens[self.current - 1]
     }
 
+    // 校准到下一条语句
     fn synchronize(&mut self) {
         self.advance();
 

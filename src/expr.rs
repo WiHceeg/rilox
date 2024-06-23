@@ -32,7 +32,7 @@ pub enum Expr {
     //   Super(Super),
     //   This(This),
     Unary(UnaryExpr),
-    //   Variable(Variable),
+    Variable(Variable),
 }
 impl fmt::Display for Expr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -41,6 +41,7 @@ impl fmt::Display for Expr {
             Expr::Literal(v) => v.fmt(f),
             Expr::Grouping(v) => v.fmt(f),
             Expr::Unary(v) => v.fmt(f),
+            Expr::Variable(v) => v.fmt(f),
         }
     }
 }
@@ -136,6 +137,26 @@ impl fmt::Display for UnaryExpr {
         write!(f, "({} {})", self.operator.lexeme, self.right)
     }
 }
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct Variable {
+    pub name: Token,
+}
+
+impl Variable {
+    pub fn new(name: Token) -> Variable {
+        Variable {
+            name: name,
+        }
+    }
+}
+
+impl fmt::Display for Variable {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.name.literal)
+    }
+}
+
 
 #[cfg(test)]
 mod tests {

@@ -7,3 +7,4 @@ pub mod expr;
 pub mod parser;
 pub mod interpreter;
 pub mod stmt;
+pub mod environment;
