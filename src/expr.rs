@@ -1,4 +1,6 @@
-use crate::token::{Token, TokenLiteral};
+use crate::token::Token;
+use crate::object::Object;
+
 use std::fmt;
 
 /*
@@ -98,21 +100,21 @@ impl fmt::Display for GroupingExpr {
 */
 #[derive(Debug, PartialEq, Clone)]
 pub struct LiteralExpr {
-    pub literal: TokenLiteral,
+    pub literal: Object,
 }
 
 impl LiteralExpr {
-    pub fn new(literal: TokenLiteral) -> LiteralExpr {
+    pub fn new(literal: Object) -> LiteralExpr {
         LiteralExpr { literal }
     }
 }
 impl fmt::Display for LiteralExpr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.literal {
-            TokenLiteral::None => write!(f, "nil"),
-            TokenLiteral::String(v) => write!(f, "{}", v),
-            TokenLiteral::Number(v) => write!(f, "{}", v),
-            TokenLiteral::Bool(v) => write!(f, "{}", v),
+            Object::None => write!(f, "nil"),
+            Object::String(v) => write!(f, "{}", v),
+            Object::Number(v) => write!(f, "{}", v),
+            Object::Bool(v) => write!(f, "{}", v),
         }
     }
 }
@@ -169,12 +171,12 @@ mod tests {
     fn test_display() {
         let expression = Expr::Binary(BinaryExpr::new(
             Expr::Unary(UnaryExpr::new(
-                Token::new(TokenType::Minus, "-".to_string(), TokenLiteral::None, 1),
-                Expr::Literal(LiteralExpr::new(TokenLiteral::Number(123.))),
+                Token::new(TokenType::Minus, "-".to_string(), Object::None, 1),
+                Expr::Literal(LiteralExpr::new(Object::Number(123.))),
             )),
-            Token::new(TokenType::Star, "*".to_string(), TokenLiteral::None, 1),
+            Token::new(TokenType::Star, "*".to_string(), Object::None, 1),
             Expr::Grouping(GroupingExpr::new(Expr::Literal(LiteralExpr::new(
-                TokenLiteral::Number(45.67),
+                Object::Number(45.67),
             )))),
         ));
 

@@ -1,4 +1,6 @@
-use crate::token::{Token, TokenLiteral};
+use crate::token::Token;
+use crate::object::Object;
+
 use crate::token_type::TokenType;
 use crate::err::LoxErr;
 
@@ -58,7 +60,7 @@ impl Scanner {
             return Err(err_vec.remove(0));
         }
 
-        self.tokens.push(Token::new(TokenType::Eof, String::new(), TokenLiteral::None, self.line));
+        self.tokens.push(Token::new(TokenType::Eof, String::new(), Object::None, self.line));
         // Ok(self.tokens.clone())
         Ok(())
     }
@@ -68,32 +70,32 @@ impl Scanner {
         let c = self.advance();
         
         match c {
-            '(' => self.push_token(TokenType::LeftParen, TokenLiteral::None),
-            ')' => self.push_token(TokenType::RightParen, TokenLiteral::None),
-            '{' => self.push_token(TokenType::LeftBrace, TokenLiteral::None),
-            '}' => self.push_token(TokenType::RightBrace, TokenLiteral::None),
-            ',' => self.push_token(TokenType::Comma, TokenLiteral::None),
-            '.' => self.push_token(TokenType::Dot, TokenLiteral::None),
-            '-' => self.push_token(TokenType::Minus, TokenLiteral::None),
-            '+' => self.push_token(TokenType::Plus, TokenLiteral::None),
-            ';' => self.push_token(TokenType::Semicolon, TokenLiteral::None),
-            '*' => self.push_token(TokenType::Star, TokenLiteral::None),
+            '(' => self.push_token(TokenType::LeftParen, Object::None),
+            ')' => self.push_token(TokenType::RightParen, Object::None),
+            '{' => self.push_token(TokenType::LeftBrace, Object::None),
+            '}' => self.push_token(TokenType::RightBrace, Object::None),
+            ',' => self.push_token(TokenType::Comma, Object::None),
+            '.' => self.push_token(TokenType::Dot, Object::None),
+            '-' => self.push_token(TokenType::Minus, Object::None),
+            '+' => self.push_token(TokenType::Plus, Object::None),
+            ';' => self.push_token(TokenType::Semicolon, Object::None),
+            '*' => self.push_token(TokenType::Star, Object::None),
 
             '!' => {
                 let tt = if self.match_char('=') {TokenType::BangEqual} else {TokenType::Bang};
-                self.push_token(tt, TokenLiteral::None);
+                self.push_token(tt, Object::None);
             }
             '=' => {
                 let tt = if self.match_char('=') {TokenType::EqualEqual} else {TokenType::Equal};
-                self.push_token(tt, TokenLiteral::None);
+                self.push_token(tt, Object::None);
             }
             '<' => {
                 let tt = if self.match_char('=') {TokenType::LessEqual} else {TokenType::Less};
-                self.push_token(tt, TokenLiteral::None);
+                self.push_token(tt, Object::None);
             }
             '>' => {
                 let tt = if self.match_char('=') {TokenType::GreaterEqual} else {TokenType::Greater};
-                self.push_token(tt , TokenLiteral::None);
+                self.push_token(tt , Object::None);
 
             }
 
@@ -105,7 +107,7 @@ impl Scanner {
                 } else if self.match_char('*') {
                     self.block_comment()?;
                 } else {
-                    self.push_token(TokenType::Slash, TokenLiteral::None);
+                    self.push_token(TokenType::Slash, Object::None);
                 }
             }
 
@@ -161,7 +163,7 @@ impl Scanner {
         self.source[self.current - 1]
     }
 
-    fn push_token(&mut self, token_type: TokenType, literal: TokenLiteral) {
+    fn push_token(&mut self, token_type: TokenType, literal: Object) {
         let text: String = self.source[self.start..self.current].iter().collect::<String>();
         self.tokens.push(Token::new(token_type, text, literal, self.line));
     }
@@ -198,7 +200,7 @@ impl Scanner {
 
         self.advance();
         let value: String = self.source[self.start + 1 .. self.current - 1].iter().collect::<String>();
-        self.push_token(TokenType::String, TokenLiteral::String(value));
+        self.push_token(TokenType::String, Object::String(value));
         Ok(())
     }
 
@@ -213,7 +215,7 @@ impl Scanner {
             }
         }
         let value_s = self.source[self.start .. self.current].iter().collect::<String>();
-        self.push_token(TokenType::Number, TokenLiteral::Number(value_s.parse::<f64>().unwrap()));
+        self.push_token(TokenType::Number, Object::Number(value_s.parse::<f64>().unwrap()));
     }
 
     fn identifier(&mut self) {
@@ -229,9 +231,9 @@ impl Scanner {
 
         match tt {
             // Bool 值特殊处理
-            TokenType::False => self.push_token(tt, TokenLiteral::Bool(false)),
-            TokenType::True => self.push_token(tt, TokenLiteral::Bool(true)),
-            _ => self.push_token(tt, TokenLiteral::None),
+            TokenType::False => self.push_token(tt, Object::Bool(false)),
+            TokenType::True => self.push_token(tt, Object::Bool(true)),
+            _ => self.push_token(tt, Object::None),
         }
 
     }

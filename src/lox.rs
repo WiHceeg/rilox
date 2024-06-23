@@ -18,6 +18,12 @@ impl Lox {
         }
     }
 
+    pub fn test_code(&self, code: &str) {
+        if let Err(lox_err) = self.run(code) {
+            self.report_error(lox_err);
+        }
+    }
+
     fn run_with_args(&self) -> Result<(), LoxErr>{
         let args: Vec<String> = std::env::args().collect();
 
