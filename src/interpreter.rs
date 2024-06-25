@@ -1,11 +1,17 @@
-use crate::expr::{Expr, BinaryExpr, GroupingExpr, LiteralExpr, UnaryExpr};
+use std::rc::Rc;
+use std::cell::{RefCell, Ref, RefMut};
+
+
+use crate::environment::Environment;
+use crate::token::Token;
+use crate::expr::{AssignExpr, BinaryExpr, Expr, GroupingExpr, LiteralExpr, UnaryExpr, VariableExpr};
 use crate::err::LoxErr;
 use crate::stmt::Stmt;
 use crate::object::Object;
 use crate::token_type::TokenType;
 
 /*
-program        → statement* EOF ;
+program        → declaration* EOF ;
 
 declaration    → varDecl
                | statement ;
@@ -13,14 +19,17 @@ declaration    → varDecl
 varDecl        → "var" IDENTIFIER ( "=" expression )? ";" ;
 
 statement      → exprStmt
-               | printStmt ;
+               | printStmt
+               | block ;
 
+block          → "{" declaration* "}" ;
 exprStmt       → expression ";" ;
 printStmt      → "print" expression ";" ;
 */
 
 pub struct Interpreter{
     pub had_runtime_error: bool,
+    environment: Rc<RefCell<Environment>>,
 }
 
 
@@ -28,7 +37,16 @@ impl Interpreter {
     pub fn new() -> Interpreter {
         Interpreter {
             had_runtime_error: false,
+            environment: Environment::new(),
         }
+    }
+
+    fn get_env(&self) -> Ref<Environment> {
+        self.environment.borrow()
+    }
+
+    fn get_env_mut(&self) -> RefMut<Environment> {
+        self.environment.borrow_mut()
     }
 
     // pub fn interpret(&self, expr: &Expr) -> Result<(), LoxErr> {
@@ -56,44 +74,66 @@ impl Interpreter {
 
             Expr::Grouping(grouping_expr) => self.visit_grouping_expr(grouping_expr),
             Expr::Unary(unary_expr) => self.visit_unary_expr(unary_expr),
-            Expr::Variable(_) => todo!(),
-            
+            Expr::Variable(variable_expr) => self.visit_variable_expr(variable_expr),
+            Expr::Assign(assign) => self.visit_assign_expr(assign),
         }
     }
 
-    fn execute(&self, stmt: &Stmt) -> Result<(), LoxErr>{
+    fn execute(&mut self, stmt: &Stmt) -> Result<(), LoxErr>{
         match stmt {
-            Stmt::Expression(_) => self.visit_expression_stmt(stmt)?,
-            Stmt::Print(_) => self.visit_print_stmt(stmt)?,
-            Stmt::Var { name, initializer } => todo!(),
+            Stmt::Block { statements: stmts } => self.visit_block_stmt(stmts)?,
+            Stmt::Expression{ expression: expr} => self.visit_expression_stmt(expr)?,
+            Stmt::Print{ expression: expr} => self.visit_print_stmt(expr)?,
+            Stmt::Var { name, initializer } => self.visit_var_stmt(name, initializer)?,
             
         };
         Ok(())
     }
 
-    fn visit_expression_stmt(&self, stmt: &Stmt) -> Result<(), LoxErr> {
-        self.evaluate(
-            match stmt {
-                Stmt::Expression(expr) => expr,
-                _ => unreachable!(),
-            }
-        )?;
+    fn execute_block(&mut self, stmts: &Vec<Stmt>, environment: Rc<RefCell<Environment>>) -> Result<(), LoxErr> {
+        let previous = Rc::clone(&self.environment);
+        self.environment = environment;
+        // let mut f = || {
+        //     for stmt in stmts {
+        //         self.execute(stmt)?;
+        //     }
+        //     Result::<(), LoxErr>::Ok(())
+        // };
+        // let ret = f();
+        let ret = stmts.iter().try_for_each(|stmt| self.execute(stmt)); // 这一行代替上面那么多真是妙啊
+
+        self.environment = previous;
+        ret
+    }
+
+    fn visit_block_stmt(&mut self, stmts: &Vec<Stmt>) -> Result<(), LoxErr> {
+        let block_env = Environment::new();
+        block_env.borrow_mut().set_enclosing(Rc::clone(&self.environment));
+        self.execute_block(stmts, block_env)
+    }
+
+    fn visit_expression_stmt(&mut self, expr: &Expr) -> Result<(), LoxErr> {
+        self.evaluate(expr)?;
         Ok(())
     }
 
-    fn visit_print_stmt(&self, stmt: &Stmt) -> Result<(), LoxErr> {
-        let tl = self.evaluate(match stmt {
-                Stmt::Print(expr) => expr,
-                _ => unreachable!(),
-            }
-        )?;
+    fn visit_print_stmt(&mut self, expr: &Expr) -> Result<(), LoxErr> {
+        let tl = self.evaluate(expr)?;
         println!("{}", tl);
         Ok(())
     }
 
-    fn visit_var_stmt(&self, stmt: &Stmt) -> Result<(), LoxErr> {
-        todo!()
+    fn visit_var_stmt(&self, name: &Token, initializer: &Option<Expr>) -> Result<(), LoxErr> {
+        let value = if initializer.is_some() {
+            self.evaluate(initializer.as_ref().unwrap())?
+        } else {
+            Object::None
+        };
+        self.get_env_mut().define(&name.lexeme, value);
+        Ok(())
     }
+
+    // fn visit_assign_expr(&mut self, assign: &)
 
     fn visit_literal_expr(&self, literal_expr: &LiteralExpr) -> Result<Object, LoxErr> {
         Ok(literal_expr.literal.clone())
@@ -197,6 +237,17 @@ impl Interpreter {
         
     }
 
+    fn visit_variable_expr(&self, variable_expr: &VariableExpr) -> Result<Object, LoxErr> {
+        self.get_env().get(&variable_expr.name)
+    }
+
+    fn visit_assign_expr(&self, assign_expr: &AssignExpr) -> Result<Object, LoxErr> {
+        let value = self.evaluate(&assign_expr.value)?;
+        self.get_env_mut().assign(&assign_expr.name, value.clone())?;
+        Ok(value)   // 赋值表达式可以嵌套在其它表达式里，比如：print a = 2;
+    }
+        
+
     fn is_truthy(literal: &Object) -> bool {
         match literal {
             Object::None => false,
@@ -207,5 +258,43 @@ impl Interpreter {
 
     fn number_err(line: usize) -> Result<Object, LoxErr> {
         Err(LoxErr::Runtime { line: line, message: "Operand must be a number.".to_string() })
+    }
+}
+
+
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+    use crate::token_type::TokenType;
+    use crate::lox::Lox;
+
+    #[test]
+    fn test_block() {
+        let lox = Lox::new();
+        let code = r#"var a = "global a";
+var b = "global b";
+var c = "global c";
+{
+var a = "outer a";
+var b = "outer b";
+{
+    var a = "inner a";
+    print a;
+    print b;
+    print c;
+}
+print a;
+print b;
+print c;
+}
+print a;
+print b;
+print c;
+        "#;
+        // let code = r#"print "code";"#;
+
+        lox.test_code(code);
     }
 }

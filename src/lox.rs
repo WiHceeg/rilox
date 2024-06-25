@@ -53,6 +53,7 @@ impl Lox {
             match std::io::stdin().read_line(&mut input_line) {
                 Ok(n) => {
                     if n == 0 {
+                        // Windows 系统 Ctrl + Z
                         break;
                     }
 

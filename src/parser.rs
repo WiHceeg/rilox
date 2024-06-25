@@ -1,10 +1,11 @@
 use crate::err::LoxErr;
+use crate::lox::Lox;
 use crate::stmt::Stmt;
 use crate::token::Token;
 use crate::object::Object;
 
-use crate::expr::Expr;
-use crate::expr::{BinaryExpr, GroupingExpr, LiteralExpr, UnaryExpr, Variable};
+use crate::expr::{AssignExpr, Expr};
+use crate::expr::{BinaryExpr, GroupingExpr, LiteralExpr, UnaryExpr, VariableExpr};
 use crate::token_type::TokenType;
 
 
@@ -64,12 +65,30 @@ impl Parser<'_> {
     }
 
     fn expression(&mut self) -> Result<Expr, LoxErr> {
-        self.equality()
+        self.assignment()
+    }
+
+    fn assignment(&mut self) -> Result<Expr, LoxErr> {
+        let expr = self.equality()?;    // （在可能存在的等号前面的）表达式
+        if self.matches(&[TokenType::Equal]) {
+            let equals = self.previous().clone();
+            let value = self.assignment()?; // 等号后面的表达式
+            if let Expr::Variable(v) = expr {
+                let name = v.name;
+                return Ok(Expr::Assign(AssignExpr::new(name, value)));
+            }
+            return Err(LoxErr::Parse { line: equals.line, lexeme: equals.lexeme, message: "Invalid assignment target.".to_string() })
+        }
+        Ok(expr)
+
     }
 
     fn statement(&mut self) -> Result<Stmt, LoxErr> {
         if self.matches(&[TokenType::Print]) {
             return self.print_statement();
+        }
+        if self.matches(&[TokenType::LeftBrace]) {
+            return Ok(Stmt::Block { statements: self.block()? })
         }
         self.expression_statement()
     }  
@@ -77,7 +96,7 @@ impl Parser<'_> {
     fn print_statement(&mut self) -> Result<Stmt, LoxErr>{
         let value = self.expression()?;
         self.consume(&TokenType::Semicolon, "Expect ';' after value.")?;
-        Ok(Stmt::Print(value))
+        Ok(Stmt::Print{expression: value})
     }
 
     fn var_declaration(&mut self) -> Result<Stmt, LoxErr> {
@@ -95,7 +114,16 @@ impl Parser<'_> {
     fn expression_statement(&mut self) -> Result<Stmt, LoxErr> {
         let expr = self.expression()?;
         self.consume(&TokenType::Semicolon, "Expect ';' after value.")?;
-        Ok(Stmt::Expression(expr))
+        Ok(Stmt::Expression{expression: expr})
+    }
+
+    fn block(&mut self) -> Result<Vec<Stmt>, LoxErr>{
+        let mut statements = Vec::new();
+        while !self.check(&TokenType::RightBrace) && !self.is_at_end() {
+            statements.push(self.declaration()?);
+        }
+        self.consume(&TokenType::RightBrace, "Expect '}' after block.");
+        Ok(statements)
     }
 
     fn equality(&mut self) -> Result<Expr, LoxErr> {
@@ -152,7 +180,7 @@ impl Parser<'_> {
     }
 
     fn primary(&mut self) -> Result<Expr, LoxErr> {
-
+        // 原版用的是多个 if else 配合 self.matches，会自动 advance，所以这里记得要手动 advance
         match self.peek().token_type {
 
             TokenType::False | TokenType::True | TokenType::Nil | TokenType::Number | TokenType::String => {
@@ -161,7 +189,8 @@ impl Parser<'_> {
             }
 
             TokenType::Identifier => {
-                Ok(Expr::Variable(Variable::new(self.previous().clone())))
+                self.advance();
+                Ok(Expr::Variable(VariableExpr::new(self.previous().clone())))
             }
 
             TokenType::LeftParen => {
@@ -178,8 +207,8 @@ impl Parser<'_> {
 
     }
 
-    fn consume(&mut self, t: &TokenType, message: &str) -> Result<&Token, LoxErr> {
-        if self.check(t) {
+    fn consume(&mut self, tt: &TokenType, message: &str) -> Result<&Token, LoxErr> {
+        if self.check(tt) {
             Ok(self.advance())
         } else {
             let peek = self.peek();
@@ -200,11 +229,11 @@ impl Parser<'_> {
         false
     }
 
-    fn check(&self, t: &TokenType) -> bool {
+    fn check(&self, tt: &TokenType) -> bool {
         if self.is_at_end() {
             return false;
         }
-        self.peek().token_type == *t
+        self.peek().token_type == *tt
     }
 
     fn advance(&mut self) -> &Token {

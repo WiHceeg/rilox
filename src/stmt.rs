@@ -3,12 +3,17 @@ use crate::token::Token;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Stmt {
-    Expression(Expr),
-    Print(Expr),
+    Block {
+        statements: Vec<Stmt>,
+    },
+    Expression {
+        expression: Expr,
+    },
+    Print {
+        expression: Expr,
+    },
     Var {
         name: Token,
-        initializer: Option<Expr>,
+        initializer: Option<Expr>, // 初始化表达式
     },
 }
-
-

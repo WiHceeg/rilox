@@ -23,30 +23,61 @@ operator       → "==" | "!=" | "<" | "<=" | ">" | ">="
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expr {
-    //   Assign(Assign),
+    Assign(AssignExpr),
     Binary(BinaryExpr),
-    //   Call(Call),
-    //   Get(Get),
+    //   Call(CallExpr),
+    //   Get(GetExpr),
     Literal(LiteralExpr),
-    //   Logical(Logical),
+    //   Logical(LogicalExpr),
     Grouping(GroupingExpr),
-    //   Set(Set),
-    //   Super(Super),
-    //   This(This),
+    //   Set(SetExpr),
+    //   Super(SuperExpr),
+    //   This(ThisExpr),
     Unary(UnaryExpr),
-    Variable(Variable),
+    Variable(VariableExpr),
 }
+
+// 用 Display 替代原版 Java 里的 AstPrinter 类
 impl fmt::Display for Expr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Expr::Assign(v) => v.fmt(f),
             Expr::Binary(v) => v.fmt(f),
+
+
             Expr::Literal(v) => v.fmt(f),
+
             Expr::Grouping(v) => v.fmt(f),
+
+
+
             Expr::Unary(v) => v.fmt(f),
             Expr::Variable(v) => v.fmt(f),
         }
     }
 }
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct AssignExpr {
+    pub name: Token,
+    pub value: Box<Expr>,   // Rust 需要在编译期确定大小，所以用 Box
+}
+
+impl AssignExpr {
+    pub fn new(name: Token, value: Expr) -> AssignExpr {
+        AssignExpr {
+            name: name,
+            value: Box::new(value),
+        }
+    }
+}
+
+impl fmt::Display for AssignExpr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "(= {} {})", self.name.lexeme, self.value)
+    }
+}
+
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct BinaryExpr {
@@ -141,19 +172,19 @@ impl fmt::Display for UnaryExpr {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Variable {
+pub struct VariableExpr {
     pub name: Token,
 }
 
-impl Variable {
-    pub fn new(name: Token) -> Variable {
-        Variable {
+impl VariableExpr {
+    pub fn new(name: Token) -> VariableExpr {
+        VariableExpr {
             name: name,
         }
     }
 }
 
-impl fmt::Display for Variable {
+impl fmt::Display for VariableExpr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.name.literal)
     }
