@@ -6,25 +6,29 @@ use crate::interpreter::Interpreter;
 use crate::parser::Parser;
 use crate::scanner::Scanner;
 
-pub struct Lox;
+pub struct Lox {
+    interpreter: Interpreter,
+}
 
 impl Lox {
     pub fn new() -> Lox {
-        Lox
+        Lox {
+            interpreter: Interpreter::new(),
+        }
     }
-    pub fn start(&self) {
+    pub fn start(&mut self) {
         if let Err(lox_err) = self.run_with_args() {
             self.report_error(lox_err);
         }
     }
 
-    pub fn test_code(&self, code: &str) {
+    pub fn test_code(&mut self, code: &str) {
         if let Err(lox_err) = self.run(code) {
             self.report_error(lox_err);
         }
     }
 
-    fn run_with_args(&self) -> Result<(), LoxErr>{
+    fn run_with_args(&mut self) -> Result<(), LoxErr>{
         let args: Vec<String> = std::env::args().collect();
 
         if args.len() > 2 {
@@ -37,19 +41,19 @@ impl Lox {
         Ok(())
     }
 
-    fn run_file<P: AsRef<std::path::Path>>(&self, path: P) -> Result<(), LoxErr>{
+    fn run_file<P: AsRef<std::path::Path>>(&mut self, path: P) -> Result<(), LoxErr>{
         let code = fs::read_to_string(path)?;
         self.run(&code)?;
         Ok(())
     }
 
-    fn run_prompt(&self) -> Result<(), LoxErr> {
+    fn run_prompt(&mut self) -> Result<(), LoxErr> {
         let mut input_line = String::new();
 
-        print!("\n> ");
-        std::io::stdout().flush()?;
-    
         loop {
+            print!("> ");
+            std::io::stdout().flush()?;
+    
             match std::io::stdin().read_line(&mut input_line) {
                 Ok(n) => {
                     if n == 0 {
@@ -66,15 +70,12 @@ impl Lox {
                     return Err(LoxErr::Io(error));
                 }
             }
-            print!("\n> ");
-            std::io::stdout().flush()?;
-    
         }
         Ok(())
     
     }
 
-    fn run(&self, code: &str) -> Result<(), LoxErr> {
+    fn run(&mut self, code: &str) -> Result<(), LoxErr> {
         
         // 扫描遇到错误的话，在这里打印出来，并继续处理 token
         let mut scanner = Scanner::new(code);
@@ -87,8 +88,7 @@ impl Lox {
         let statements = parser.parse();
         
         // 解释执行遇到错误的话，内部会处理
-        let mut interpreter = Interpreter::new();
-        interpreter.interpret(&statements);
+        self.interpreter.interpret(&statements);
 
         Ok(())
 

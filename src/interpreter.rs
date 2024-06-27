@@ -133,8 +133,6 @@ impl Interpreter {
         Ok(())
     }
 
-    // fn visit_assign_expr(&mut self, assign: &)
-
     fn visit_literal_expr(&self, literal_expr: &LiteralExpr) -> Result<Object, LoxErr> {
         Ok(literal_expr.literal.clone())
     }
@@ -272,7 +270,7 @@ mod tests {
 
     #[test]
     fn test_block() {
-        let lox = Lox::new();
+        let mut lox = Lox::new();
         let code = r#"var a = "global a";
 var b = "global b";
 var c = "global c";
