@@ -11,28 +11,6 @@ use crate::token_type::TokenType;
 
 
 
-/*
-后缀`*`允许前一个符号或组重复零次或多次
-后缀`+`与此类似，但要求前面的生成式至少出现一次
-后缀`?`表示可选生成式，它之前的生成式可以出现零次或一次，但不能出现多次
-
-expression     → assignment ;
-assignment     → IDENTIFIER "=" assignment
-               | equality ;
-equality       → comparison ( ( "!=" | "==" ) comparison )* ;
-comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
-term           → factor ( ( "-" | "+" ) factor )* ;     // term 项，项之间通常通过加法或减法连接
-factor         → unary ( ( "/" | "*" ) unary )* ;       // factor 因子，因子之间通常通过乘法或除法连接
-unary          → ( "!" | "-" ) unary
-               | primary ;
-primary        → "true" | "false" | "nil"
-               | NUMBER | STRING
-               | "(" expression ")"
-               | IDENTIFIER ;
-
-*/
-
-
 pub struct Parser<'a> {
     tokens: &'a Vec<Token>,
     current: usize,
@@ -84,6 +62,9 @@ impl Parser<'_> {
     }
 
     fn statement(&mut self) -> Result<Stmt, LoxErr> {
+        if self.matches(&[TokenType::If]) {
+            return self.if_statement();
+        }
         if self.matches(&[TokenType::Print]) {
             return self.print_statement();
         }
@@ -92,6 +73,24 @@ impl Parser<'_> {
         }
         self.expression_statement()
     }  
+
+    fn if_statement(&mut self) -> Result<Stmt, LoxErr> {
+        self.consume(&TokenType::LeftParen, "Expect '(' after 'if'.")?;
+        let condition = self.expression()?;
+        self.consume(&TokenType::RightParen, "Expect ')' after if condition.")?;
+
+        let then_branch = Box::new(self.statement()?);
+        let else_branch = if self.matches(&[TokenType::Else]) {
+            Some(Box::new(self.statement()?))
+        } else {
+            None
+        };
+        Ok(Stmt::If{
+            condition: condition,
+            then_branch: then_branch,
+            else_branch: else_branch,
+        })
+    }
 
     fn print_statement(&mut self) -> Result<Stmt, LoxErr>{
         let value = self.expression()?;

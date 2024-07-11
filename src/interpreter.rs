@@ -10,22 +10,7 @@ use crate::stmt::Stmt;
 use crate::object::Object;
 use crate::token_type::TokenType;
 
-/*
-program        → declaration* EOF ;
 
-declaration    → varDecl
-               | statement ;
-
-varDecl        → "var" IDENTIFIER ( "=" expression )? ";" ;
-
-statement      → exprStmt
-               | printStmt
-               | block ;
-
-block          → "{" declaration* "}" ;
-exprStmt       → expression ";" ;
-printStmt      → "print" expression ";" ;
-*/
 
 pub struct Interpreter{
     pub had_runtime_error: bool,
@@ -83,6 +68,8 @@ impl Interpreter {
         match stmt {
             Stmt::Block { statements: stmts } => self.visit_block_stmt(stmts)?,
             Stmt::Expression{ expression: expr} => self.visit_expression_stmt(expr)?,
+            Stmt::If { condition, then_branch, else_branch } => self.visit_if_stmt(condition, then_branch, else_branch)?,
+
             Stmt::Print{ expression: expr} => self.visit_print_stmt(expr)?,
             Stmt::Var { name, initializer } => self.visit_var_stmt(name, initializer)?,
             
@@ -117,8 +104,17 @@ impl Interpreter {
         Ok(())
     }
 
+    fn visit_if_stmt(&mut self, condition: &Expr, then_branch: &Box<Stmt>, else_branch: &Option<Box<Stmt>>) -> Result<(), LoxErr> {
+        if Interpreter::is_truthy(&self.evaluate(condition)?) {
+            self.execute(&*then_branch)?;
+        } else if let Some(exist_else_branch) = else_branch {
+            self.execute(&*exist_else_branch)?;
+        }
+        Ok(())
+    }
+
     fn visit_print_stmt(&mut self, expr: &Expr) -> Result<(), LoxErr> {
-        let tl = self.evaluate(expr)?;
+        let tl: Object = self.evaluate(expr)?;
         println!("{}", tl);
         Ok(())
     }
