@@ -126,7 +126,7 @@ impl Parser<'_> {
         } else {
             None
         };
-        self.consume(&TokenType::Semicolon, "Expect ';' after variable declaration.");
+        self.consume(&TokenType::Semicolon, "Expect ';' after variable declaration.")?;
         Ok(Stmt::Var { name: name, initializer: initializer })
     }
 
@@ -141,7 +141,7 @@ impl Parser<'_> {
         while !self.check(&TokenType::RightBrace) && !self.is_at_end() {
             statements.push(self.declaration()?);
         }
-        self.consume(&TokenType::RightBrace, "Expect '}' after block.");
+        self.consume(&TokenType::RightBrace, "Expect '}' after block.")?;
         Ok(statements)
     }
 
