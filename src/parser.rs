@@ -4,7 +4,7 @@ use crate::stmt::Stmt;
 use crate::token::Token;
 use crate::object::Object;
 
-use crate::expr::{AssignExpr, Expr};
+use crate::expr::{AssignExpr, Expr, LogicalExpr};
 use crate::expr::{BinaryExpr, GroupingExpr, LiteralExpr, UnaryExpr, VariableExpr};
 use crate::token_type::TokenType;
 
@@ -47,7 +47,7 @@ impl Parser<'_> {
     }
 
     fn assignment(&mut self) -> Result<Expr, LoxErr> {
-        let expr = self.equality()?;    // （在可能存在的等号前面的）表达式
+        let expr = self.or()?;    // （在可能存在的等号前面的）表达式
         if self.matches(&[TokenType::Equal]) {
             let equals = self.previous().clone();
             let value = self.assignment()?; // 等号后面的表达式
@@ -59,6 +59,26 @@ impl Parser<'_> {
         }
         Ok(expr)
 
+    }
+
+    fn or(&mut self) -> Result<Expr, LoxErr> {
+        let mut expr = self.and()?;
+        while self.matches(&[TokenType::Or]) {
+            let operator = self.previous().clone();
+            let right = self.and()?;
+            expr = Expr::Logical(LogicalExpr::new(expr, operator, right));
+        }
+        Ok(expr)
+    }
+
+    fn and(&mut self) -> Result<Expr, LoxErr> {
+        let mut expr = self.equality()?;
+        while self.matches(&[TokenType::And]) {
+            let operator = self.previous().clone();
+            let right = self.equality()?;
+            expr = Expr::Logical(LogicalExpr::new(expr, operator, right));
+        }
+        Ok(expr)
     }
 
     fn statement(&mut self) -> Result<Stmt, LoxErr> {

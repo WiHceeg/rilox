@@ -27,9 +27,9 @@ pub enum Expr {
     Binary(BinaryExpr),
     //   Call(CallExpr),
     //   Get(GetExpr),
-    Literal(LiteralExpr),
-    //   Logical(LogicalExpr),
     Grouping(GroupingExpr),
+    Literal(LiteralExpr),
+    Logical(LogicalExpr),
     //   Set(SetExpr),
     //   Super(SuperExpr),
     //   This(ThisExpr),
@@ -46,7 +46,7 @@ impl fmt::Display for Expr {
 
 
             Expr::Literal(v) => v.fmt(f),
-
+            Expr::Logical(v) => v.fmt(f),
             Expr::Grouping(v) => v.fmt(f),
 
 
@@ -149,6 +149,30 @@ impl fmt::Display for LiteralExpr {
         }
     }
 }
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct LogicalExpr {
+    pub left: Box<Expr>,
+    pub operator: Token,
+    pub right: Box<Expr>,
+}
+
+impl LogicalExpr {
+    pub fn new(left: Expr, operator: Token, right: Expr) -> LogicalExpr {
+        LogicalExpr {
+            left: Box::new(left),
+            operator: operator,
+            right: Box::new(right),
+        }
+    }
+}
+
+impl fmt::Display for LogicalExpr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "({} {} {})", self.operator.lexeme, self.left, self.right)
+    }
+}
+
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct UnaryExpr {

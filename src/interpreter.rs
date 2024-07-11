@@ -4,7 +4,7 @@ use std::cell::{RefCell, Ref, RefMut};
 
 use crate::environment::Environment;
 use crate::token::Token;
-use crate::expr::{AssignExpr, BinaryExpr, Expr, GroupingExpr, LiteralExpr, UnaryExpr, VariableExpr};
+use crate::expr::{AssignExpr, BinaryExpr, Expr, GroupingExpr, LiteralExpr, LogicalExpr, UnaryExpr, VariableExpr};
 use crate::err::LoxErr;
 use crate::stmt::Stmt;
 use crate::object::Object;
@@ -58,6 +58,7 @@ impl Interpreter {
             Expr::Binary(binary_expr) => self.visit_binary_expr(binary_expr),
 
             Expr::Grouping(grouping_expr) => self.visit_grouping_expr(grouping_expr),
+            Expr::Logical(logical_expr) => self.visit_logical_expr(logical_expr),
             Expr::Unary(unary_expr) => self.visit_unary_expr(unary_expr),
             Expr::Variable(variable_expr) => self.visit_variable_expr(variable_expr),
             Expr::Assign(assign) => self.visit_assign_expr(assign),
@@ -152,6 +153,22 @@ impl Interpreter {
             },
             _ => unreachable!("Impossible operator for unary expr."),
         }
+    }
+
+    // 逻辑运算符并不承诺会真正返回`true`或`false`，而只是保证它将返回一个具有适当真实性的值。
+    fn visit_logical_expr(&self, logical_expr: &LogicalExpr) -> Result<Object, LoxErr> {
+        let left = self.evaluate(&logical_expr.left)?;
+        if logical_expr.operator.token_type == TokenType::Or {
+            if Interpreter::is_truthy(&left) {
+                return Ok(left);
+            } // else right
+        } else {
+            // And
+            if !Interpreter::is_truthy(&left) {
+                return Ok(left);
+            } // else right
+        }
+        self.evaluate(&logical_expr.right)
     }
 
     fn visit_binary_expr(&self, binary_expr: &BinaryExpr) -> Result<Object, LoxErr> {
