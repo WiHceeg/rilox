@@ -70,7 +70,7 @@ impl Interpreter {
             Stmt::Block { statements: stmts } => self.visit_block_stmt(stmts)?,
             Stmt::Expression{ expression: expr} => self.visit_expression_stmt(expr)?,
             Stmt::If { condition, then_branch, else_branch } => self.visit_if_stmt(condition, then_branch, else_branch)?,
-
+            Stmt::While { condition, body } => self.visit_while_stmt(condition, body)?,
             Stmt::Print{ expression: expr} => self.visit_print_stmt(expr)?,
             Stmt::Var { name, initializer } => self.visit_var_stmt(name, initializer)?,
             
@@ -110,6 +110,13 @@ impl Interpreter {
             self.execute(&*then_branch)?;
         } else if let Some(exist_else_branch) = else_branch {
             self.execute(&*exist_else_branch)?;
+        }
+        Ok(())
+    }
+
+    fn visit_while_stmt(&mut self, condition: &Expr, body: &Box<Stmt>) -> Result<(), LoxErr> {
+        while Interpreter::is_truthy(&self.evaluate(condition)?) {
+            self.execute(&*body)?;
         }
         Ok(())
     }
