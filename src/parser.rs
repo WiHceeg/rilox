@@ -1,5 +1,4 @@
 use crate::err::LoxErr;
-use crate::lox::Lox;
 use crate::stmt::Stmt;
 use crate::token::Token;
 use crate::object::Object;
@@ -150,24 +149,25 @@ impl Parser<'_> {
         };
         self.consume(&TokenType::RightParen, "Expect ')' after for clauses.")?;
 
-        let mut body = self.statement()?;
+        let mut for_body = self.statement()?;
         if increment.is_some() {
-            body = Stmt::Block { 
-                statements: vec![body, Stmt::Expression { expression: increment.unwrap() },]
+            for_body = Stmt::Block { 
+                statements: vec![for_body, Stmt::Expression { expression: increment.unwrap() },]
             };
         }
-        body = Stmt::While { 
+
+        let mut desugar_res = Stmt::While { 
             condition: condition, 
-            body: Box::new(body),
+            body: Box::new(for_body),
         };
 
         if initializer.is_some() {
-            body = Stmt::Block { 
-                statements: vec![initializer.unwrap(), body,] 
+            desugar_res = Stmt::Block { 
+                statements: vec![initializer.unwrap(), desugar_res,] 
             };
         }
 
-        Ok(body)
+        Ok(desugar_res)
     }
 
     fn print_statement(&mut self) -> Result<Stmt, LoxErr> {
