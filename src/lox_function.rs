@@ -42,7 +42,9 @@ impl LoxCallable for LoxFunction {
         for i in 0..self.declaration.params.len() {
             env.borrow_mut().define(&self.declaration.params[i].lexeme, arguments[i].clone());
         }
-        interpreter.execute_block(&self.declaration.body, env)?;
+        if let Err(LoxErr::RuntimeReturn { ret_value }) = interpreter.execute_block(&self.declaration.body, env) {
+            return Ok(ret_value)
+        }
         Ok(Object::None)
 
     }

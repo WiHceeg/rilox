@@ -80,6 +80,7 @@ impl Interpreter {
             Stmt::Print{ expression: expr} => self.visit_print_stmt(expr)?,
             Stmt::Var { name, initializer } => self.visit_var_stmt(name, initializer)?,
             Stmt::FunctionDeclaration { function_declaration } => self.visit_function_declaration_stmt(function_declaration)?,
+            Stmt::Return { keyword: _, value } => self.visit_return_stmt(value)?,
         };
         Ok(())
     }
@@ -137,6 +138,15 @@ impl Interpreter {
         let tl: Object = self.evaluate(expr)?;
         println!("{}", tl);
         Ok(())
+    }
+
+    fn visit_return_stmt(&mut self, value: &Option<Expr>) -> Result<(), LoxErr> {
+        let ret_value = if let Some(expr) = value {
+            self.evaluate(expr)?
+        } else {
+            Object::None
+        };
+        Err(LoxErr::RuntimeReturn { ret_value })
     }
 
     fn visit_var_stmt(&mut self, name: &Token, initializer: &Option<Expr>) -> Result<(), LoxErr> {

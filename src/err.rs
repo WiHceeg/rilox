@@ -1,7 +1,7 @@
 use std::io;
-
 use thiserror;
 
+use crate::object::Object;
 
 #[derive(thiserror::Error, Debug)]
 pub enum LoxErr {
@@ -28,6 +28,12 @@ pub enum LoxErr {
     Runtime{
         line: usize,
         message: String,
+    },
+
+    // Java 原版用异常实现 Return
+    #[error("RuntimeReturn: {ret_value}")]
+    RuntimeReturn {
+        ret_value: Object,
     },
 
     #[error("Resolve Error: [line {line}] {message}")]
