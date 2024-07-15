@@ -3,29 +3,11 @@ use crate::object::Object;
 
 use std::fmt;
 
-/*
-后缀`*`允许前一个符号或组重复零次或多次
-后缀`+`与此类似，但要求前面的生成式至少出现一次
-后缀`?`表示可选生成式，它之前的生成式可以出现零次或一次，但不能出现多次
-
-expression     → literal
-               | unary  // 一元表达式
-               | binary     // 二元表达式
-               | grouping ;     // 括号
-
-literal        → NUMBER | STRING | "true" | "false" | "nil" ;
-grouping       → "(" expression ")" ;
-unary          → ( "-" | "!" ) expression ;
-binary         → expression operator expression ;
-operator       → "==" | "!=" | "<" | "<=" | ">" | ">="
-                  | "+"  | "-"  | "*" | "/" ;
-*/
-
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expr {
     Assign(AssignExpr),
     Binary(BinaryExpr),
-    //   Call(CallExpr),
+    Call(CallExpr),
     //   Get(GetExpr),
     Grouping(GroupingExpr),
     Literal(LiteralExpr),
@@ -43,7 +25,7 @@ impl fmt::Display for Expr {
         match self {
             Expr::Assign(v) => v.fmt(f),
             Expr::Binary(v) => v.fmt(f),
-
+            Expr::Call(v) => v.fmt(f),
 
             Expr::Literal(v) => v.fmt(f),
             Expr::Logical(v) => v.fmt(f),
@@ -103,6 +85,30 @@ impl fmt::Display for BinaryExpr {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub struct CallExpr {
+    pub callee: Box<Expr>,  // 这个 Expr 应该是 Variable
+    pub paren: Token,
+    pub arguments: Vec<Expr>,
+}
+
+impl CallExpr {
+    pub fn new(callee: Expr, paren: Token, arguments: Vec<Expr>) -> CallExpr {
+        CallExpr {
+            callee: Box::new(callee),
+            paren: paren,
+            arguments: arguments,
+        }
+    }
+}
+
+impl fmt::Display for CallExpr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "(call {} {:?})", self.callee, self.arguments)
+    }
+}
+
+
+#[derive(Debug, PartialEq, Clone)]
 pub struct GroupingExpr {
     pub expression: Box<Expr>,
 }
@@ -146,6 +152,8 @@ impl fmt::Display for LiteralExpr {
             Object::String(v) => write!(f, "{}", v),
             Object::Number(v) => write!(f, "{}", v),
             Object::Bool(v) => write!(f, "{}", v),
+            Object::Function(v) => write!(f, "{}", v),
+            Object::NativeFunction(v) => write!(f, "{}", v),
         }
     }
 }

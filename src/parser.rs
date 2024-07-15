@@ -1,13 +1,11 @@
 use crate::err::LoxErr;
-use crate::stmt::Stmt;
+use crate::stmt::{FunctionDeclaration, Stmt};
 use crate::token::Token;
 use crate::object::Object;
 
-use crate::expr::{AssignExpr, Expr, LogicalExpr};
+use crate::expr::{AssignExpr, CallExpr, Expr, LogicalExpr};
 use crate::expr::{BinaryExpr, GroupingExpr, LiteralExpr, UnaryExpr, VariableExpr};
 use crate::token_type::TokenType;
-
-
 
 
 pub struct Parser<'a> {
@@ -25,7 +23,7 @@ impl Parser<'_> {
 
                 // 原版是在 declaration 处理错误
                 Err(lox_err) => {
-                    println!("{}", lox_err);
+                    eprintln!("{}", lox_err);
                     self.synchronize();
                 }
             }            
@@ -36,6 +34,8 @@ impl Parser<'_> {
     fn declaration(&mut self) -> Result<Stmt, LoxErr> {
         if self.matches(&[TokenType::Var]) {
             self.var_declaration()
+        } else if self.matches(&[TokenType::Fun]) {
+            self.function("function")
         } else {
             self.statement()
         }
@@ -194,6 +194,34 @@ impl Parser<'_> {
         Ok(Stmt::Expression{expression: expr})
     }
 
+    // 函数定义
+    fn function(&mut self, kind: &str) -> Result<Stmt, LoxErr> {
+        let name = self.consume(&TokenType::Identifier, &format!("Expect {} name.", kind))?.clone();
+        self.consume(&TokenType::LeftParen, &format!("Expect '(' after {} name.", kind))?;
+        let mut parameters = Vec::new();
+        if !self.check(&TokenType::RightParen) {
+            loop {
+                if parameters.len() >= 255 {
+                    eprintln!("{}", LoxErr::Parse { line: self.peek().line, lexeme: self.peek().lexeme.clone(), message: "Can't have more than 255 parameters.".to_string() });
+                }
+                parameters.push(self.consume(&TokenType::Identifier, "Expect parameter name.")?.clone());
+                if !self.matches(&[TokenType::Comma]) {
+                    break;
+                }
+            }
+        }
+        self.consume(&TokenType::RightParen, "Expect ')' after parameters.")?;
+
+        self.consume(&TokenType::LeftBrace, &format!("Expect '{{' before {} body.", kind))?;    // format 里的大括号需要使用两个连续的大括号 {{ 或 }}
+        let body = self.block()?;
+        Ok(Stmt::FunctionDeclaration { function_declaration: FunctionDeclaration {
+            name: name,
+            params: parameters,
+            body: body,
+        } })
+    }
+
+    // 调用 block 前要先消费掉开头的 `{` 
     fn block(&mut self) -> Result<Vec<Stmt>, LoxErr>{
         let mut statements = Vec::new();
         while !self.check(&TokenType::RightBrace) && !self.is_at_end() {
@@ -253,7 +281,40 @@ impl Parser<'_> {
             let right = self.unary()?;
             return Ok(Expr::Unary(UnaryExpr::new(operator, right)));
         }
-        self.primary()
+        self.call()
+    }
+
+    fn call(&mut self) -> Result<Expr, LoxErr> {
+        let mut expr = self.primary()?;
+
+        // 这里有个 loop，是因为一个 call 的结果可能也是 callee，比如f1(a1, a2) 的结果是 f2，可以 f1(a1, a2)(b1, b2) 这样调用
+        loop {
+            if self.matches(&[TokenType::LeftParen]) {
+                expr = self.finish_call(expr)?;
+            } else {
+                break;
+            }
+        }
+        Ok(expr)
+    }
+
+    fn finish_call(&mut self, callee: Expr) -> Result<Expr, LoxErr> {
+        let mut arguments = Vec::new();
+        if !self.check(&TokenType::RightParen) {
+            loop {
+                if arguments.len() >= 255 {
+                    // 它会报告这个错误，并继续执行解析
+                    eprintln!("{}", LoxErr::Parse { line: self.peek().line, lexeme: self.peek().lexeme.clone(), message: "Can't have more than 255 arguments.".to_string() });
+                    
+                }
+                arguments.push(self.expression()?);
+                if !self.matches(&[TokenType::Comma]) {
+                    break;
+                }
+            }
+        }
+        let paren = self.consume(&TokenType::RightParen, "Expect ')' after arguments.")?.clone();
+        Ok(Expr::Call(CallExpr::new(callee, paren, arguments)))
     }
 
     fn primary(&mut self) -> Result<Expr, LoxErr> {

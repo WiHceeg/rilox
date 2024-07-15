@@ -12,8 +12,9 @@ equality       → comparison ( ( "!=" | "==" ) comparison )* ;
 comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
 term           → factor ( ( "-" | "+" ) factor )* ;     // term 项，项之间通常通过加法或减法连接
 factor         → unary ( ( "/" | "*" ) unary )* ;       // factor 因子，因子之间通常通过乘法或除法连接
-unary          → ( "!" | "-" ) unary
-               | primary ;
+unary          → ( "!" | "-" ) unary | call ;
+call           → primary ( "(" arguments? ")" )* ;
+arguments      → expression ( "," expression )* ;
 primary        → "true" | "false" | "nil"
                | NUMBER | STRING
                | "(" expression ")"
@@ -24,8 +25,13 @@ primary        → "true" | "false" | "nil"
 /*
 program        → declaration* EOF ;
 
-declaration    → varDecl
+declaration    → funDecl
+               | varDecl
                | statement ;
+
+funDecl        → "fun" function ;
+function       → IDENTIFIER "(" parameters? ")" block ;
+parameters     → IDENTIFIER ( "," IDENTIFIER )* ;
 
 varDecl        → "var" IDENTIFIER ( "=" expression )? ";" ;
 
@@ -144,7 +150,7 @@ impl Lox {
     }
 
     fn report_error(&self, lox_err: LoxErr) {
-        println!("{}", lox_err)
+        eprintln!("{}", lox_err)
     }
 
     

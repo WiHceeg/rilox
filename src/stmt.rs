@@ -9,6 +9,11 @@ pub enum Stmt {
     Expression {
         expression: Expr,
     },
+
+    // 函数定义
+    FunctionDeclaration {
+        function_declaration: FunctionDeclaration,
+    },
     If {
         condition: Expr,
         then_branch: Box<Stmt>,
@@ -25,4 +30,24 @@ pub enum Stmt {
         name: Token,
         initializer: Option<Expr>, // 初始化表达式
     },
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct FunctionDeclaration {
+    pub name: Token,
+    pub params: Vec<Token>,
+    pub body: Vec<Stmt>,
+
+}
+
+
+impl Stmt {
+    pub fn is_function_declaration(&self) -> bool {
+        match self {
+            Stmt::FunctionDeclaration { .. } => true,
+            _ => false,
+        }
+    }
+
+    
 }

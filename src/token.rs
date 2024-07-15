@@ -1,4 +1,4 @@
-use std::fmt::{self, Debug};
+use std::fmt::Debug;
 use crate::token_type::TokenType;
 use crate::object::Object;
 

@@ -3,11 +3,13 @@ use std::cell::{RefCell, Ref, RefMut};
 
 
 use crate::environment::Environment;
+use crate::lox_callable::LoxCallable;
+use crate::lox_function::LoxFunction;
 use crate::token::Token;
-use crate::expr::{AssignExpr, BinaryExpr, Expr, GroupingExpr, LiteralExpr, LogicalExpr, UnaryExpr, VariableExpr};
+use crate::expr::{AssignExpr, BinaryExpr, CallExpr, Expr, GroupingExpr, LiteralExpr, LogicalExpr, UnaryExpr, VariableExpr};
 use crate::err::LoxErr;
-use crate::stmt::Stmt;
-use crate::object::Object;
+use crate::stmt::{FunctionDeclaration, Stmt};
+use crate::object::{NativeFunction, Object};
 use crate::token_type::TokenType;
 
 
@@ -15,14 +17,18 @@ use crate::token_type::TokenType;
 pub struct Interpreter{
     pub had_runtime_error: bool,
     environment: Rc<RefCell<Environment>>,
+    pub globals: Rc<RefCell<Environment>>,
 }
 
 
 impl Interpreter {
     pub fn new() -> Interpreter {
+        let env = Environment::new();
+        env.borrow_mut().define("clock", Object::NativeFunction(NativeFunction{ name: "clock".to_string() }));
         Interpreter {
             had_runtime_error: false,
-            environment: Environment::new(),
+            environment: Rc::clone(&env),
+            globals: env,
         }
     }
 
@@ -43,7 +49,7 @@ impl Interpreter {
     pub fn interpret(&mut self, statements: &Vec<Stmt>) {
         for statement in statements {
             if let Err(lox_err) = self.execute(statement) {
-                println!("{}", lox_err);
+                eprintln!("{}", lox_err);
                 self.had_runtime_error = true;
             }
         }
@@ -51,12 +57,12 @@ impl Interpreter {
 
 
 
-    fn evaluate(&self, expr: &Expr) -> Result<Object, LoxErr> {
+    fn evaluate(&mut self, expr: &Expr) -> Result<Object, LoxErr> {
         match expr {
             Expr::Literal(literal_expr) => self.visit_literal_expr(literal_expr),
 
             Expr::Binary(binary_expr) => self.visit_binary_expr(binary_expr),
-
+            Expr::Call(call_expr) => self.visit_call_expr(call_expr),
             Expr::Grouping(grouping_expr) => self.visit_grouping_expr(grouping_expr),
             Expr::Logical(logical_expr) => self.visit_logical_expr(logical_expr),
             Expr::Unary(unary_expr) => self.visit_unary_expr(unary_expr),
@@ -73,12 +79,12 @@ impl Interpreter {
             Stmt::While { condition, body } => self.visit_while_stmt(condition, body)?,
             Stmt::Print{ expression: expr} => self.visit_print_stmt(expr)?,
             Stmt::Var { name, initializer } => self.visit_var_stmt(name, initializer)?,
-            
+            Stmt::FunctionDeclaration { function_declaration } => self.visit_function_declaration_stmt(function_declaration)?,
         };
         Ok(())
     }
 
-    fn execute_block(&mut self, stmts: &Vec<Stmt>, environment: Rc<RefCell<Environment>>) -> Result<(), LoxErr> {
+    pub fn execute_block(&mut self, stmts: &Vec<Stmt>, environment: Rc<RefCell<Environment>>) -> Result<(), LoxErr> {
         let previous = Rc::clone(&self.environment);
         self.environment = environment;
         // let mut f = || {
@@ -105,6 +111,12 @@ impl Interpreter {
         Ok(())
     }
 
+    fn visit_function_declaration_stmt(&mut self, function_declaration: &FunctionDeclaration) -> Result<(), LoxErr> {
+        let function = LoxFunction::new(function_declaration);
+        self.get_env_mut().define(&function_declaration.name.lexeme, Object::Function(function));
+        Ok(())
+    }
+
     fn visit_if_stmt(&mut self, condition: &Expr, then_branch: &Box<Stmt>, else_branch: &Option<Box<Stmt>>) -> Result<(), LoxErr> {
         if Interpreter::is_truthy(&self.evaluate(condition)?) {
             self.execute(&*then_branch)?;
@@ -127,7 +139,7 @@ impl Interpreter {
         Ok(())
     }
 
-    fn visit_var_stmt(&self, name: &Token, initializer: &Option<Expr>) -> Result<(), LoxErr> {
+    fn visit_var_stmt(&mut self, name: &Token, initializer: &Option<Expr>) -> Result<(), LoxErr> {
         let value = if initializer.is_some() {
             self.evaluate(initializer.as_ref().unwrap())?
         } else {
@@ -141,11 +153,11 @@ impl Interpreter {
         Ok(literal_expr.literal.clone())
     }
 
-    fn visit_grouping_expr(&self, grouping_expr: &GroupingExpr) -> Result<Object, LoxErr> {
+    fn visit_grouping_expr(&mut self, grouping_expr: &GroupingExpr) -> Result<Object, LoxErr> {
         self.evaluate(&grouping_expr.expression)
     }
 
-    fn visit_unary_expr(&self, unary_expr: &UnaryExpr) -> Result<Object, LoxErr> {
+    fn visit_unary_expr(&mut self, unary_expr: &UnaryExpr) -> Result<Object, LoxErr> {
         let right = self.evaluate(&unary_expr.right)?;
         match unary_expr.operator.token_type {
             TokenType::Bang => {
@@ -162,8 +174,27 @@ impl Interpreter {
         }
     }
 
+    fn visit_call_expr(&mut self, call_expr: &CallExpr) -> Result<Object, LoxErr> {
+        let callee = self.evaluate(&*call_expr.callee)?;
+        let mut arguments = Vec::new();
+        for arg in &call_expr.arguments {
+            arguments.push(self.evaluate(arg)?);
+        }
+        // call_expr.arguments.iter().try_for_each(|x| self.evaluate(x));
+        if let Object::Function(mut function) = callee {
+            if arguments.len() != function.arity() {
+                return Err(LoxErr::Runtime { line: call_expr.paren.line, message: format!("Expected {} arguments but got {}.", function.arity(), arguments.len()) });
+            }
+            return function.call(self, arguments);
+        } else {
+            return Err(LoxErr::Runtime { line: call_expr.paren.line, message: "Can only call functions and classes.".to_string() });
+        }
+
+        
+    }
+
     // 逻辑运算符并不承诺会真正返回`true`或`false`，而只是保证它将返回一个具有适当真实性的值。
-    fn visit_logical_expr(&self, logical_expr: &LogicalExpr) -> Result<Object, LoxErr> {
+    fn visit_logical_expr(&mut self, logical_expr: &LogicalExpr) -> Result<Object, LoxErr> {
         let left = self.evaluate(&logical_expr.left)?;
         if logical_expr.operator.token_type == TokenType::Or {
             if Interpreter::is_truthy(&left) {
@@ -178,7 +209,7 @@ impl Interpreter {
         self.evaluate(&logical_expr.right)
     }
 
-    fn visit_binary_expr(&self, binary_expr: &BinaryExpr) -> Result<Object, LoxErr> {
+    fn visit_binary_expr(&mut self, binary_expr: &BinaryExpr) -> Result<Object, LoxErr> {
 
 
         let left = self.evaluate(&binary_expr.left)?;
@@ -259,7 +290,7 @@ impl Interpreter {
         self.get_env().get(&variable_expr.name)
     }
 
-    fn visit_assign_expr(&self, assign_expr: &AssignExpr) -> Result<Object, LoxErr> {
+    fn visit_assign_expr(&mut self, assign_expr: &AssignExpr) -> Result<Object, LoxErr> {
         let value = self.evaluate(&assign_expr.value)?;
         self.get_env_mut().assign(&assign_expr.name, value.clone())?;
         Ok(value)   // 赋值表达式可以嵌套在其它表达式里，比如：print a = 2;
