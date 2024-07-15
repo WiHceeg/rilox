@@ -25,7 +25,7 @@ impl Default for Object {
 
 impl fmt::Display for Object {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // write!(f, "({} {} {})", self.operator.lexeme, self.left, self.right)
+
         match self {
             Object::None => write!(f, "nil"),
             Object::Bool(b) => fmt::Display::fmt(b, f),
@@ -111,7 +111,7 @@ impl LoxCallable for NativeFunction {
         }
     }
 
-    fn call(&mut self, interpreter: &mut Interpreter, arguments: Vec<Object>) -> Result<Object, LoxErr> {
+    fn call(&mut self, _interpreter: &mut Interpreter, _arguments: Vec<Object>) -> Result<Object, LoxErr> {
         match self.name.as_str() {
             "clock" => Ok(Object::Number(SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs_f64())),
             

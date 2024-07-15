@@ -40,12 +40,6 @@ impl Interpreter {
         self.environment.borrow_mut()
     }
 
-    // pub fn interpret(&self, expr: &Expr) -> Result<(), LoxErr> {
-    //     let value = self.evaluate(expr)?;
-    //     println!("{}", value);
-    //     Ok(())
-    // }
-
     pub fn interpret(&mut self, statements: &Vec<Stmt>) {
         for statement in statements {
             if let Err(lox_err) = self.execute(statement) {
@@ -113,7 +107,7 @@ impl Interpreter {
     }
 
     fn visit_function_declaration_stmt(&mut self, function_declaration: &FunctionDeclaration) -> Result<(), LoxErr> {
-        let function = LoxFunction::new(function_declaration);
+        let function = LoxFunction::new(function_declaration, Rc::clone(&self.environment));
         self.get_env_mut().define(&function_declaration.name.lexeme, Object::Function(function));
         Ok(())
     }
@@ -190,14 +184,20 @@ impl Interpreter {
         for arg in &call_expr.arguments {
             arguments.push(self.evaluate(arg)?);
         }
-        // call_expr.arguments.iter().try_for_each(|x| self.evaluate(x));
-        if let Object::Function(mut function) = callee {
-            if arguments.len() != function.arity() {
-                return Err(LoxErr::Runtime { line: call_expr.paren.line, message: format!("Expected {} arguments but got {}.", function.arity(), arguments.len()) });
+        
+        match callee {
+            Object::Function(mut function) => {
+                if arguments.len() != function.arity() {
+                    return Err(LoxErr::Runtime { line: call_expr.paren.line, message: format!("Expected {} arguments but got {}.", function.arity(), arguments.len()) });
+                }
+                return function.call(self, arguments);
             }
-            return function.call(self, arguments);
-        } else {
-            return Err(LoxErr::Runtime { line: call_expr.paren.line, message: "Can only call functions and classes.".to_string() });
+            Object::NativeFunction(mut native_function) => {
+                return native_function.call(self, arguments);
+            }
+            _ => {
+                return Err(LoxErr::Runtime { line: call_expr.paren.line, message: "Can only call functions and classes.".to_string() });
+            }
         }
 
         

@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::fmt;
 use std::rc::Rc;
 
@@ -10,14 +11,16 @@ use crate::object::Object;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct LoxFunction {
-    pub declaration: Box<FunctionDeclaration>,
+    declaration: Box<FunctionDeclaration>,
+    closure: Rc<RefCell<Environment>>,
 }
 
 impl LoxFunction {
-    pub fn new(fun_decl: &FunctionDeclaration) -> LoxFunction {
+    pub fn new(fun_decl: &FunctionDeclaration, closure: Rc<RefCell<Environment>>) -> LoxFunction {
 
         LoxFunction{
             declaration: Box::new(fun_decl.clone()),
+            closure: closure,
         }
     }
 }
@@ -36,14 +39,17 @@ impl LoxCallable for LoxFunction {
 
     fn call(&mut self, interpreter: &mut Interpreter, arguments: Vec<Object>) -> Result<Object, LoxErr> {
         let env = Environment::new();
-        env.borrow_mut().set_enclosing(Rc::clone(&interpreter.globals));
+        env.borrow_mut().set_enclosing(Rc::clone(&self.closure));
 
-        
         for i in 0..self.declaration.params.len() {
             env.borrow_mut().define(&self.declaration.params[i].lexeme, arguments[i].clone());
         }
-        if let Err(LoxErr::RuntimeReturn { ret_value }) = interpreter.execute_block(&self.declaration.body, env) {
-            return Ok(ret_value)
+        
+        match interpreter.execute_block(&self.declaration.body, env) {
+            Err(LoxErr::RuntimeReturn { ret_value }) => return Ok(ret_value),
+            Err(other_lox_err) => return Err(other_lox_err),
+            Ok(_) => (),
+
         }
         Ok(Object::None)
 
