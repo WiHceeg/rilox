@@ -417,8 +417,8 @@ impl Parser<'_> {
             }
 
             match self.peek().token_type {
-                TokenType::Class | TokenType::Fun | TokenType::Var | TokenType::For | TokenType::If | TokenType::While | TokenType::Print | TokenType::Return => (),
-                _ => {}
+                TokenType::Class | TokenType::Fun | TokenType::Var | TokenType::For | TokenType::If | TokenType::While | TokenType::Print | TokenType::Return => return,
+                _ => (),
             }
             self.advance();
         }
