@@ -11,3 +11,4 @@ pub mod stmt;
 pub mod environment;
 pub mod lox_callable;
 pub mod lox_function;
+pub mod resolver;

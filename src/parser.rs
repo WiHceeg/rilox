@@ -15,6 +15,10 @@ pub struct Parser<'a> {
 
 impl Parser<'_> {
 
+    pub fn new(tokens: &Vec<Token>) -> Parser {
+        Parser { tokens, current: 0 }
+    }
+
     pub fn parse(&mut self) -> Vec<Stmt> {
         let mut statements: Vec<Stmt> = Vec::new();
         while !self.is_at_end() {
@@ -424,7 +428,4 @@ impl Parser<'_> {
         }
     }
 
-    pub fn new(tokens: &Vec<Token>) -> Parser {
-        Parser { tokens, current: 0 }
-    }
 }

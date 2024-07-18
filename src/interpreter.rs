@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::rc::Rc;
 use std::cell::{RefCell, Ref, RefMut};
 
@@ -18,6 +19,7 @@ pub struct Interpreter{
     pub had_runtime_error: bool,
     environment: Rc<RefCell<Environment>>,
     pub globals: Rc<RefCell<Environment>>,
+    locals: HashMap<Expr, usize>,
 }
 
 
@@ -29,6 +31,7 @@ impl Interpreter {
             had_runtime_error: false,
             environment: Rc::clone(&env),
             globals: env,
+            locals: HashMap::new(),
         }
     }
 
@@ -49,7 +52,9 @@ impl Interpreter {
         }
     }
 
-
+    pub fn resolve(&mut self, expr: &Expr, depth: usize) {
+        // self.locals.insert(expr.clone(), depth);
+    }
 
     fn evaluate(&mut self, expr: &Expr) -> Result<Object, LoxErr> {
         match expr {
@@ -114,16 +119,16 @@ impl Interpreter {
 
     fn visit_if_stmt(&mut self, condition: &Expr, then_branch: &Box<Stmt>, else_branch: &Option<Box<Stmt>>) -> Result<(), LoxErr> {
         if Interpreter::is_truthy(&self.evaluate(condition)?) {
-            self.execute(&*then_branch)?;
+            self.execute(then_branch)?;
         } else if let Some(exist_else_branch) = else_branch {
-            self.execute(&*exist_else_branch)?;
+            self.execute(exist_else_branch)?;
         }
         Ok(())
     }
 
     fn visit_while_stmt(&mut self, condition: &Expr, body: &Box<Stmt>) -> Result<(), LoxErr> {
         while Interpreter::is_truthy(&self.evaluate(condition)?) {
-            self.execute(&*body)?;
+            self.execute(body)?;
         }
         Ok(())
     }

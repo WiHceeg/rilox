@@ -12,7 +12,7 @@ use crate::object::Object;
 #[derive(Debug, PartialEq, Clone)]
 pub struct LoxFunction {
     declaration: Box<FunctionDeclaration>,
-    closure: Rc<RefCell<Environment>>,
+    closure: Rc<RefCell<Environment>>,  // 闭包，它 "封闭 "并保留着函数声明的外围变量
 }
 
 impl LoxFunction {
@@ -44,7 +44,7 @@ impl LoxCallable for LoxFunction {
         for i in 0..self.declaration.params.len() {
             env.borrow_mut().define(&self.declaration.params[i].lexeme, arguments[i].clone());
         }
-        
+
         match interpreter.execute_block(&self.declaration.body, env) {
             Err(LoxErr::RuntimeReturn { ret_value }) => return Ok(ret_value),
             Err(other_lox_err) => return Err(other_lox_err),

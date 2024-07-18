@@ -61,6 +61,7 @@ use std::io::Write;
 use crate::err::LoxErr;
 use crate::interpreter::Interpreter;
 use crate::parser::Parser;
+use crate::resolver::{self, Resolver};
 use crate::scanner::Scanner;
 
 pub struct Lox {
@@ -144,6 +145,13 @@ impl Lox {
         let mut parser = Parser::new(&scanner.tokens);
         let statements = parser.parse();
         
+        // 语义分析遇到错误的话，内部会处理，并停止
+        let mut resolver = Resolver::new(&mut self.interpreter);
+        resolver.resolve(&statements);
+        if resolver.had_resolve_error {
+            return Ok(())
+        }
+
         // 解释执行遇到错误的话，内部会处理
         self.interpreter.interpret(&statements);
 
