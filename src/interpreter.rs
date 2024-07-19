@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::rc::Rc;
 use std::cell::{RefCell, Ref, RefMut};
 
@@ -6,6 +5,7 @@ use std::cell::{RefCell, Ref, RefMut};
 use crate::environment::Environment;
 use crate::lox_callable::LoxCallable;
 use crate::lox_function::LoxFunction;
+use crate::resolvable::Resolvable;
 use crate::token::Token;
 use crate::expr::{AssignExpr, BinaryExpr, CallExpr, Expr, GroupingExpr, LiteralExpr, LogicalExpr, UnaryExpr, VariableExpr};
 use crate::err::LoxErr;
@@ -19,7 +19,6 @@ pub struct Interpreter{
     pub had_runtime_error: bool,
     environment: Rc<RefCell<Environment>>,
     pub globals: Rc<RefCell<Environment>>,
-    locals: HashMap<Expr, usize>,
 }
 
 
@@ -31,7 +30,6 @@ impl Interpreter {
             had_runtime_error: false,
             environment: Rc::clone(&env),
             globals: env,
-            locals: HashMap::new(),
         }
     }
 
@@ -43,6 +41,14 @@ impl Interpreter {
         self.environment.borrow_mut()
     }
 
+    fn get_globals(&self) -> Ref<Environment> {
+        self.globals.borrow()
+    }
+
+    fn get_globals_mut(&self) -> RefMut<Environment> {
+        self.globals.borrow_mut()
+    }
+
     pub fn interpret(&mut self, statements: &Vec<Stmt>) {
         for statement in statements {
             if let Err(lox_err) = self.execute(statement) {
@@ -50,10 +56,6 @@ impl Interpreter {
                 self.had_runtime_error = true;
             }
         }
-    }
-
-    pub fn resolve(&mut self, expr: &Expr, depth: usize) {
-        // self.locals.insert(expr.clone(), depth);
     }
 
     fn evaluate(&mut self, expr: &Expr) -> Result<Object, LoxErr> {
@@ -302,15 +304,31 @@ impl Interpreter {
     }
 
     fn visit_variable_expr(&self, variable_expr: &VariableExpr) -> Result<Object, LoxErr> {
-        self.get_env().get(&variable_expr.name)
+        // self.get_env().get(&variable_expr.name)
+        self.look_up_variable(variable_expr)
     }
 
+    
     fn visit_assign_expr(&mut self, assign_expr: &AssignExpr) -> Result<Object, LoxErr> {
         let value = self.evaluate(&assign_expr.value)?;
-        self.get_env_mut().assign(&assign_expr.name, value.clone())?;
+        // self.get_env_mut().assign(&assign_expr.name, value.clone())?;
+
+        if let Some(distance) = assign_expr.get_distance() {
+            self.get_env_mut().assign_at(distance, assign_expr.name(), value.clone());
+        } else {
+            self.get_globals_mut().assign(assign_expr.name(), value.clone())?;
+        }
+
         Ok(value)   // 赋值表达式可以嵌套在其它表达式里，比如：print a = 2;
     }
         
+    fn look_up_variable(&self, val: &impl Resolvable) -> Result<Object, LoxErr> {
+        if let Some(distance) = val.get_distance() {
+            Ok(self.get_env().get_at(distance, &val.name().lexeme))
+        } else {
+            self.get_globals().get(val.name())
+        }
+    }
 
     fn is_truthy(literal: &Object) -> bool {
         match literal {
@@ -329,9 +347,6 @@ impl Interpreter {
 
 #[cfg(test)]
 mod tests {
-
-    use super::*;
-    use crate::token_type::TokenType;
     use crate::lox::Lox;
 
     #[test]

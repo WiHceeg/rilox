@@ -12,7 +12,7 @@ use crate::token::Token;
 #[derive(Debug, PartialEq, Clone)]
 pub struct Environment {
     enclosing: Option<Rc<RefCell<Environment>>>,
-    values: HashMap<String, Object>,
+    pub values: HashMap<String, Object>,
 }
 
 impl Environment {
@@ -59,6 +59,34 @@ impl Environment {
             }
         }
     }
+
+    pub fn get_at(&self, distance: usize, name: &str) -> Object {
+        if distance == 0 {
+            return self.values.get(name).unwrap().clone();
+        }
+
+        self.ancestor(distance).borrow().values.get(name).unwrap().clone()
+    }
+
+    pub fn assign_at(&mut self, distance: usize, name: &Token, value: Object) {
+        if distance == 0 {
+            *self.values.get_mut(&name.lexeme).unwrap() = value;
+        } else {
+            *self.ancestor(distance).borrow_mut().values.get_mut(&name.lexeme).unwrap() = value;
+
+        }
+    }
+
+    fn ancestor(&self, distance: usize) -> Rc<RefCell<Environment>> {
+        assert!(distance >= 1, "param distance should >= 1, now {}", distance);
+
+        let mut ancestor = self.enclosing.clone();
+        for _ in 1..distance {
+            ancestor = ancestor.unwrap().borrow_mut().enclosing.clone();
+        }
+        ancestor.unwrap()
+    }
+
 }
 
 
@@ -99,7 +127,7 @@ mod tests {
 
     #[test]
     fn test_assign_existing() {
-        let mut env = Environment::new();
+        let env = Environment::new();
         let token = Token::new(TokenType::Identifier, "x".to_string(), Object::Number(42.0), 1);
         env.borrow_mut().define("x", Object::Number(42.0));
         assert!(env.borrow_mut().assign(&token, Object::Number(100.0)).is_ok());
@@ -111,7 +139,7 @@ mod tests {
 
     #[test]
     fn test_assign_non_existing() {
-        let mut env = Environment::new();
+        let env = Environment::new();
         let token = Token::new(TokenType::Identifier, "x".to_string(), Object::Number(0.0), 1);
         match env.borrow_mut().assign(&token, Object::Number(100.0)) {
             Ok(_) => panic!("Expected an error for undefined variable"),

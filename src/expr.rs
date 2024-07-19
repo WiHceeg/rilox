@@ -1,3 +1,4 @@
+use crate::resolvable::Resolvable;
 use crate::token::Token;
 use crate::object::Object;
 
@@ -43,6 +44,7 @@ impl fmt::Display for Expr {
 pub struct AssignExpr {
     pub name: Token,
     pub value: Box<Expr>,   // Rust 需要在编译期确定大小，所以用 Box
+    distance: Option<usize>,
 }
 
 impl AssignExpr {
@@ -50,7 +52,22 @@ impl AssignExpr {
         AssignExpr {
             name: name,
             value: Box::new(value),
+            distance: None,
         }
+    }
+}
+
+impl Resolvable for AssignExpr {
+    fn name(&self) -> &Token {
+        &self.name
+    }
+
+    fn set_distance(&mut self, distance: usize) {
+        self.distance = Some(distance);
+    }
+
+    fn get_distance(&self) -> Option<usize> {
+        self.distance
     }
 }
 
@@ -206,12 +223,14 @@ impl fmt::Display for UnaryExpr {
 #[derive(Debug, PartialEq, Clone)]
 pub struct VariableExpr {
     pub name: Token,
+    distance: Option<usize>,
 }
 
 impl VariableExpr {
     pub fn new(name: Token) -> VariableExpr {
         VariableExpr {
             name: name,
+            distance: None,
         }
     }
 }
@@ -222,6 +241,19 @@ impl fmt::Display for VariableExpr {
     }
 }
 
+impl Resolvable for VariableExpr {
+    fn name(&self) -> &Token {
+        &self.name
+    }
+
+    fn set_distance(&mut self, distance: usize) {
+        self.distance = Some(distance);
+    }
+
+    fn get_distance(&self) -> Option<usize> {
+        self.distance
+    }
+}
 
 #[cfg(test)]
 mod tests {

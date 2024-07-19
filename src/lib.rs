@@ -12,3 +12,4 @@ pub mod environment;
 pub mod lox_callable;
 pub mod lox_function;
 pub mod resolver;
+pub mod resolvable;
