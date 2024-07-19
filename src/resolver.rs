@@ -11,15 +11,19 @@ use crate::token::Token;
 pub struct Resolver {
     pub had_resolve_error: bool,
     scopes: Vec<HashMap<String, bool>>,
+    current_function: FunctionType,
 }
 
 
 impl Resolver {
 
+
+
     pub fn new() -> Resolver {
         Resolver {
             had_resolve_error: false,
             scopes: Vec::new(),
+            current_function: FunctionType::None,
         }
     }
 
@@ -40,7 +44,7 @@ impl Resolver {
             Stmt::If { condition, then_branch, else_branch } => self.visit_if_stmt(condition, then_branch, else_branch),
             Stmt::While { condition, body } => self.visit_while_stmt(condition, body),
             Stmt::Print { expression } => self.visit_print_stmt(expression),
-            Stmt::Return { keyword: _, value } => self.visit_return_stmt(value),
+            Stmt::Return { keyword, value } => self.visit_return_stmt(keyword, value),
             Stmt::Var { name, initializer } => self.visit_var_stmt(name, initializer),
         }
     }
@@ -58,7 +62,10 @@ impl Resolver {
         }
     }
 
-    fn resolve_function(&mut self, function_declaration: &mut FunctionDeclaration) -> Result<(), LoxErr> {
+    fn resolve_function(&mut self, function_declaration: &mut FunctionDeclaration, function_type: FunctionType) -> Result<(), LoxErr> {
+        let enclosing_function = self.current_function;
+        self.current_function = function_type;
+
         self.begin_scope();
         for param in &function_declaration.params {
             self.declare(param)?;
@@ -66,6 +73,9 @@ impl Resolver {
         }
         self.resolve(&mut function_declaration.body);
         self.end_scope();
+
+        self.current_function = enclosing_function;
+
         Ok(())
     }
 
@@ -93,6 +103,9 @@ impl Resolver {
 
     fn declare(&mut self, name: &Token) -> Result<(), LoxErr> {
         if let Some(scope) = self.scopes.last_mut() {
+            if scope.contains_key(&name.lexeme) {
+                return Err(LoxErr::Resolve { line: name.line, message: "Already variable with this name in this scope.".to_string() });
+            }
             scope.insert(name.lexeme.clone(), false);
             
         }
@@ -130,7 +143,7 @@ impl Resolver {
     fn visit_function_declaration_stmt(&mut self, function_declaration: &mut FunctionDeclaration) -> Result<(), LoxErr> {
         self.declare(&function_declaration.name)?;
         self.define(&function_declaration.name);
-        self.resolve_function(function_declaration)?;
+        self.resolve_function(function_declaration, FunctionType::Function)?;
         Ok(())
     }
 
@@ -148,7 +161,12 @@ impl Resolver {
         Ok(())
     }
 
-    fn visit_return_stmt(&mut self, value: &mut Option<Expr>) -> Result<(), LoxErr> {
+    fn visit_return_stmt(&mut self, keyword: &Token, value: &mut Option<Expr>) -> Result<(), LoxErr> {
+
+        if self.current_function == FunctionType::None {
+            return Err(LoxErr::Resolve { line: keyword.line, message: "Can't return from top-level code.".to_string() });
+        }
+
         if let Some(exist_ret_value) = value {
             self.resolve_expr(exist_ret_value)?;
         }
@@ -213,4 +231,10 @@ impl Resolver {
         Ok(())
     }
 
+}
+
+#[derive(Debug, PartialEq, Clone, Copy)]
+enum FunctionType {
+    None,
+    Function,
 }
