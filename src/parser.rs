@@ -35,13 +35,13 @@ impl Parser<'_> {
         statements
     }
 
+
     fn declaration(&mut self) -> Result<Stmt, LoxErr> {
-        if self.matches(&[TokenType::Var]) {
-            self.var_declaration()
-        } else if self.matches(&[TokenType::Fun]) {
-            self.function("function")
-        } else {
-            self.statement()
+        match self.get_match_type(&[TokenType::Var, TokenType::Fun, TokenType::Class]) {
+            Some(TokenType::Var) => self.var_declaration(),
+            Some(TokenType::Fun) => self.function_declaration("function"),
+            // Some(TokenType::Class) => self.class_declaration(),
+            _ => self.statement(),
         }
     }
 
@@ -85,26 +85,16 @@ impl Parser<'_> {
     }
 
     fn statement(&mut self) -> Result<Stmt, LoxErr> {
-        if self.matches(&[TokenType::If]) {
-            return self.if_statement();
+        match self.get_match_type(&[TokenType::If, TokenType::Print, TokenType::Return, TokenType::While, TokenType::For, TokenType::LeftBrace,]) {
+            Some(TokenType::If) => self.if_statement(),
+            Some(TokenType::Print) => self.print_statement(),
+            Some(TokenType::Return) => self.return_statement(),
+            Some(TokenType::While) => self.while_statement(),
+            Some(TokenType::For) => self.for_statement(),
+            Some(TokenType::LeftBrace) => Ok(Stmt::Block { statements: self.block()? }),
+            _ => self.expression_statement(),   // None
         }
-        if self.matches(&[TokenType::Print]) {
-            return self.print_statement();
-        }
-        if self.matches(&[TokenType::Return]) {
-            return self.return_statement();
-        }
-        if self.matches(&[TokenType::While]) {
-            return self.while_statement();
-        }
-        if self.matches(&[TokenType::For]) {
-            return self.for_statement();
-        }
-        if self.matches(&[TokenType::LeftBrace]) {
-            return Ok(Stmt::Block { statements: self.block()? })
-        }
-        self.expression_statement()
-    }  
+    }
 
     fn if_statement(&mut self) -> Result<Stmt, LoxErr> {
         self.consume(&TokenType::LeftParen, "Expect '(' after 'if'.")?;
@@ -136,13 +126,13 @@ impl Parser<'_> {
     fn for_statement(&mut self) -> Result<Stmt, LoxErr> {
         
         self.consume(&TokenType::LeftParen, "Expect '(' after 'for'.")?;
-        let initializer = if self.matches(&[TokenType::Semicolon]) {
-            None
-        } else if self.matches(&[TokenType::Var]) {
-            Some(self.var_declaration()?)
-        } else {
-            Some(self.expression_statement()?)
+        
+        let initializer = match self.get_match_type(&[TokenType::Semicolon, TokenType::Var,]) {
+            Some(TokenType::Semicolon) => None,
+            Some(TokenType::Var) => Some(self.var_declaration()?),
+            _ => Some(self.expression_statement()?),
         };
+
         let condition = if self.check(&TokenType::Semicolon) {
             Expr::Literal(LiteralExpr::new(Object::Bool(true)))     // 没写条件时，视为 true
         } else {
@@ -213,7 +203,7 @@ impl Parser<'_> {
     }
 
     // 函数定义
-    fn function(&mut self, kind: &str) -> Result<Stmt, LoxErr> {
+    fn function_declaration(&mut self, kind: &str) -> Result<Stmt, LoxErr> {
         let name = self.consume(&TokenType::Identifier, &format!("Expect {} name.", kind))?.clone();
         self.consume(&TokenType::LeftParen, &format!("Expect '(' after {} name.", kind))?;
         let mut parameters = Vec::new();
@@ -383,6 +373,16 @@ impl Parser<'_> {
             }
         }
         false
+    }
+
+    fn get_match_type(&mut self, types: &[TokenType]) -> Option<TokenType> {
+        for t in types {
+            if self.check(t) {
+                self.advance();
+                return Some(*t);
+            }
+        }
+        None
     }
 
     fn check(&self, tt: &TokenType) -> bool {

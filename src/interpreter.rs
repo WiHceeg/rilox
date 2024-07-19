@@ -304,14 +304,12 @@ impl Interpreter {
     }
 
     fn visit_variable_expr(&self, variable_expr: &VariableExpr) -> Result<Object, LoxErr> {
-        // self.get_env().get(&variable_expr.name)
         self.look_up_variable(variable_expr)
     }
 
     
     fn visit_assign_expr(&mut self, assign_expr: &AssignExpr) -> Result<Object, LoxErr> {
         let value = self.evaluate(&assign_expr.value)?;
-        // self.get_env_mut().assign(&assign_expr.name, value.clone())?;
 
         if let Some(distance) = assign_expr.get_distance() {
             self.get_env_mut().assign_at(distance, assign_expr.name(), value.clone());

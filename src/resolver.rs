@@ -17,8 +17,6 @@ pub struct Resolver {
 
 impl Resolver {
 
-
-
     pub fn new() -> Resolver {
         Resolver {
             had_resolve_error: false,
@@ -96,10 +94,6 @@ impl Resolver {
     fn end_scope(&mut self) {
         self.scopes.pop();
     }
-
-
-
-
 
     fn declare(&mut self, name: &Token) -> Result<(), LoxErr> {
         if let Some(scope) = self.scopes.last_mut() {
@@ -184,7 +178,6 @@ impl Resolver {
             if scope.get(&variable_expr.name.lexeme) == Some(&false) {
                 // 在初始化式中引用一个变量是错误的。如果初始化式使用了要初始化的变量，则解释器在编译时或运行时都会失败。
                 return Err(LoxErr::Resolve { line: variable_expr.name.line, message: "Can't read local variable in its own initializer.".to_string() })
-
             }
         }
         self.resolve_local(variable_expr);

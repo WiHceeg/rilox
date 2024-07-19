@@ -61,7 +61,7 @@ impl Scanner {
         }
 
         self.tokens.push(Token::new(TokenType::Eof, String::new(), Object::None, self.line));
-        // Ok(self.tokens.clone())
+        
         Ok(())
     }
 
@@ -222,9 +222,9 @@ impl Scanner {
         while self.peek().is_ascii_alphanumeric() || self.peek() == '_' {
             self.advance();
         }
-        let text: String = self.source[self.start..self.current].iter().collect::<String>();
-        let tt: TokenType = if let Some(word) = self.keywords.get(&text) {
-            word.clone()
+        let text = self.source[self.start..self.current].iter().collect::<String>();
+        let tt = if let Some(word) = self.keywords.get(&text) {
+            *word
         } else {
             TokenType::Identifier
         };

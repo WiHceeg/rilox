@@ -6,6 +6,11 @@ pub enum Stmt {
     Block {
         statements: Vec<Stmt>,
     },
+    
+    // ClassDeclaration {
+    //     class_declaration: ClassDeclaration,
+    // },
+
     Expression {
         expression: Expr,
     },
@@ -52,6 +57,10 @@ impl Stmt {
             _ => false,
         }
     }
+}
 
-    
+#[derive(Debug, PartialEq, Clone)]
+pub struct ClassDeclaration {
+    pub name: Token,
+    pub methods: Vec<FunctionDeclaration>,
 }
