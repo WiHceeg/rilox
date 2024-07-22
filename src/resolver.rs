@@ -2,15 +2,15 @@ use std::collections::HashMap;
 
 
 use crate::err::LoxErr;
-use crate::expr::{AssignExpr, BinaryExpr, CallExpr, Expr, GroupingExpr, LogicalExpr, UnaryExpr, VariableExpr};
+use crate::expr::{AssignExpr, BinaryExpr, CallExpr, Expr, GetExpr, GroupingExpr, LogicalExpr, SetExpr, ThisExpr, UnaryExpr, VariableExpr};
 
 use crate::resolvable::Resolvable;
-use crate::stmt::{FunctionDeclaration, Stmt};
+use crate::stmt::{ClassDeclaration, FunctionDeclaration, Stmt};
 use crate::token::Token;
 
 pub struct Resolver {
     pub had_resolve_error: bool,
-    scopes: Vec<HashMap<String, bool>>,
+    scopes: Vec<HashMap<String, bool>>, // 作用域栈，scopes[i] 中值为 false 代表已经声明，true 代表已经定义
     current_function: FunctionType,
 }
 
@@ -37,6 +37,7 @@ impl Resolver {
     fn resolve_stmt(&mut self, stmt: &mut Stmt) -> Result<(), LoxErr> {
         match stmt {
             Stmt::Block { statements } => self.visit_block_stmt(statements),
+            Stmt::ClassDeclaration { class_declaration } => self.visit_class_stmt(class_declaration),
             Stmt::Expression { expression } => self.visit_expression_stmt(expression),
             Stmt::FunctionDeclaration { function_declaration } => self.visit_function_declaration_stmt(function_declaration),
             Stmt::If { condition, then_branch, else_branch } => self.visit_if_stmt(condition, then_branch, else_branch),
@@ -52,11 +53,15 @@ impl Resolver {
             Expr::Assign(assign_expr) => self.visit_assign_expr(assign_expr),
             Expr::Binary(binary_expr) => self.visit_binary_expr(binary_expr),
             Expr::Call(call_expr) => self.visit_call_expr(call_expr),
+            Expr::Get(get_expr) => self.visit_get_expr(get_expr),
             Expr::Grouping(grouping_expr) => self.visit_grouping_expr(grouping_expr),
             Expr::Literal(_literal_expr) => self.visit_literal_expr(),
             Expr::Logical(logical_expr) => self.visit_logical_expr(logical_expr),
+            Expr::Set(set_expr) => self.visit_set_expr(set_expr),
+            // Expr::This(this_expr) => self.visit_this_expr(this_expr),
             Expr::Unary(unary_expr) => self.visit_unary_expr(unary_expr),
             Expr::Variable(variable_expr) => self.visit_variable_expr(variable_expr),
+            
         }
     }
 
@@ -116,6 +121,16 @@ impl Resolver {
         self.begin_scope();
         self.resolve(statements);
         self.end_scope();
+        Ok(())
+    }
+
+    fn visit_class_stmt(&mut self, class_declaration: &mut ClassDeclaration) -> Result<(), LoxErr> {
+        self.declare(&class_declaration.name)?;
+        self.define(&class_declaration.name);
+        for method in &mut class_declaration.methods {
+            self.resolve_function(method, FunctionType::Method)?;
+        }
+
         Ok(())
     }
 
@@ -208,6 +223,11 @@ impl Resolver {
         Ok(())
     }
 
+    fn visit_get_expr(&mut self, get_expr: &mut GetExpr) -> Result<(), LoxErr> {
+        self.resolve_expr(&mut *(*get_expr).object)?;
+        Ok(())
+    }
+
     fn visit_grouping_expr(&mut self, grouping_expr: &mut GroupingExpr) -> Result<(), LoxErr> {
         self.resolve_expr(&mut *(*grouping_expr).expression)?;
         Ok(())
@@ -216,6 +236,17 @@ impl Resolver {
     fn visit_logical_expr(&mut self, logical_expr: &mut LogicalExpr) -> Result<(), LoxErr> {
         self.resolve_expr(&mut *(*logical_expr).left)?;
         self.resolve_expr(&mut *(*logical_expr).right)?;
+        Ok(())
+    }
+
+    fn visit_set_expr(&mut self, set_expr: &mut SetExpr) -> Result<(), LoxErr> {
+        self.resolve_expr(&mut *(*set_expr).value)?;
+        self.resolve_expr(&mut *(*set_expr).object)?;
+        Ok(())
+    }
+
+    fn visit_this_expr(&mut self, this_expr: &mut ThisExpr) -> Result<(), LoxErr> {
+        self.resolve_local(this_expr);
         Ok(())
     }
 
@@ -230,4 +261,5 @@ impl Resolver {
 enum FunctionType {
     None,
     Function,
+    Method,
 }

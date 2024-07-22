@@ -13,3 +13,5 @@ pub mod lox_callable;
 pub mod lox_function;
 pub mod resolver;
 pub mod resolvable;
+pub mod lox_class;
+pub mod lox_instance;

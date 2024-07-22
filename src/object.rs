@@ -1,20 +1,27 @@
+use std::borrow::Borrow;
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::fmt::{self, Debug};
 use std::time::{UNIX_EPOCH, SystemTime};
 
 use crate::err::LoxErr;
 use crate::lox_callable::LoxCallable;
 use crate::interpreter::Interpreter;
+use crate::lox_class::LoxClass;
 use crate::lox_function::LoxFunction;
-
+use crate::lox_instance::LoxInstance;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Object {
     None,
     Bool(bool),
+    Class(LoxClass),
+    Instance(Rc<RefCell<LoxInstance>>),
     String(String),
     Number(f64),
     Function(LoxFunction), // 函数对象
     NativeFunction(NativeFunction),
+
 }
 
 impl Default for Object {
@@ -29,68 +36,70 @@ impl fmt::Display for Object {
         match self {
             Object::None => write!(f, "nil"),
             Object::Bool(b) => fmt::Display::fmt(b, f),
+            Object::Class(class) => fmt::Display::fmt(class, f),
             Object::String(s) => fmt::Display::fmt(s, f),
             Object::Number(n) => fmt::Display::fmt(n, f),
             Object::Function(func) => fmt::Display::fmt(func, f),
-            Object::NativeFunction(native_func) => fmt::Display::fmt(native_func, f)
+            Object::NativeFunction(native_func) => fmt::Display::fmt(native_func, f),
+            Object::Instance(instance) => fmt::Display::fmt(&instance.borrow_mut(), f),
         }
     }
 }
 
-impl Object {
+// impl Object {
 
-    pub fn is_none(&self) -> bool {
-        match self {
-            Object::None => true,
-            _ => false,
-        }
-    }
+//     pub fn is_none(&self) -> bool {
+//         match self {
+//             Object::None => true,
+//             _ => false,
+//         }
+//     }
 
-    pub fn is_bool(&self) -> bool {
-        match self {
-            Object::Bool(_) => true,
-            _ => false,
-        }
-    }
+//     pub fn is_bool(&self) -> bool {
+//         match self {
+//             Object::Bool(_) => true,
+//             _ => false,
+//         }
+//     }
 
-    pub fn is_string(&self) -> bool {
-        match self {
-            Object::String(_) => true,
-            _ => false,
-        }
-    }
+//     pub fn is_string(&self) -> bool {
+//         match self {
+//             Object::String(_) => true,
+//             _ => false,
+//         }
+//     }
 
-    pub fn is_number(&self) -> bool {
-        match self {
-            Object::Number(_) => true,
-            _ => false,
-        }
-    }
+//     pub fn is_number(&self) -> bool {
+//         match self {
+//             Object::Number(_) => true,
+//             _ => false,
+//         }
+//     }
 
-    pub fn get_bool(&self) -> Option<bool> {
-        if let Object::Bool(b) = self {
-            Some(*b)
-        } else {
-            None
-        }
-    }
+//     pub fn get_bool(&self) -> Option<bool> {
+//         if let Object::Bool(b) = self {
+//             Some(*b)
+//         } else {
+//             None
+//         }
+//     }
 
-    pub fn get_string(&self) -> Option<String> {
-        if let Object::String(s) = self {
-            Some(s.clone())
-        } else {
-            None
-        }
-    }
+//     pub fn get_string(&self) -> Option<String> {
+//         if let Object::String(s) = self {
+//             Some(s.clone())
+//         } else {
+//             None
+//         }
+//     }
 
-    pub fn get_number(&self) -> Option<f64> {
-        if let Object::Number(n) = self {
-            Some(*n)
-        } else {
-            None
-        }
-    }
-}
+//     pub fn get_number(&self) -> Option<f64> {
+//         if let Object::Number(n) = self {
+//             Some(*n)
+//         } else {
+//             None
+//         }
+//     }
+// }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct NativeFunction {

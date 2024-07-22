@@ -1,15 +1,18 @@
+use std::collections::HashMap;
 use std::rc::Rc;
 use std::cell::{RefCell, Ref, RefMut};
 
 
 use crate::environment::Environment;
+use crate::lox::Lox;
 use crate::lox_callable::LoxCallable;
+use crate::lox_class::LoxClass;
 use crate::lox_function::LoxFunction;
 use crate::resolvable::Resolvable;
 use crate::token::Token;
-use crate::expr::{AssignExpr, BinaryExpr, CallExpr, Expr, GroupingExpr, LiteralExpr, LogicalExpr, UnaryExpr, VariableExpr};
+use crate::expr::{AssignExpr, BinaryExpr, CallExpr, Expr, GetExpr, GroupingExpr, LiteralExpr, LogicalExpr, SetExpr, UnaryExpr, VariableExpr};
 use crate::err::LoxErr;
-use crate::stmt::{FunctionDeclaration, Stmt};
+use crate::stmt::{ClassDeclaration, FunctionDeclaration, Stmt};
 use crate::object::{NativeFunction, Object};
 use crate::token_type::TokenType;
 
@@ -60,21 +63,23 @@ impl Interpreter {
 
     fn evaluate(&mut self, expr: &Expr) -> Result<Object, LoxErr> {
         match expr {
-            Expr::Literal(literal_expr) => self.visit_literal_expr(literal_expr),
-
+            Expr::Assign(assign_expr) => self.visit_assign_expr(assign_expr),
             Expr::Binary(binary_expr) => self.visit_binary_expr(binary_expr),
             Expr::Call(call_expr) => self.visit_call_expr(call_expr),
+            Expr::Get(get_expr) => self.visit_get_expr(get_expr),
             Expr::Grouping(grouping_expr) => self.visit_grouping_expr(grouping_expr),
+            Expr::Literal(literal_expr) => self.visit_literal_expr(literal_expr),
             Expr::Logical(logical_expr) => self.visit_logical_expr(logical_expr),
+            Expr::Set(set_expr) => self.visit_set_expr(set_expr),
             Expr::Unary(unary_expr) => self.visit_unary_expr(unary_expr),
             Expr::Variable(variable_expr) => self.visit_variable_expr(variable_expr),
-            Expr::Assign(assign) => self.visit_assign_expr(assign),
         }
     }
 
     fn execute(&mut self, stmt: &Stmt) -> Result<(), LoxErr>{
         match stmt {
             Stmt::Block { statements: stmts } => self.visit_block_stmt(stmts)?,
+            Stmt::ClassDeclaration { class_declaration } => self.visit_class_declaration_stmt(class_declaration)?,
             Stmt::Expression{ expression: expr} => self.visit_expression_stmt(expr)?,
             Stmt::If { condition, then_branch, else_branch } => self.visit_if_stmt(condition, then_branch, else_branch)?,
             Stmt::While { condition, body } => self.visit_while_stmt(condition, body)?,
@@ -106,6 +111,20 @@ impl Interpreter {
         let block_env = Environment::new();
         block_env.borrow_mut().set_enclosing(Rc::clone(&self.environment));
         self.execute_block(stmts, block_env)
+    }
+
+    fn visit_class_declaration_stmt(&mut self, class_declaration: &ClassDeclaration) -> Result<(), LoxErr> {
+        self.get_env_mut().define(&class_declaration.name.lexeme, Object::None);
+
+        let mut methods = HashMap::new();
+        for method_decl in &class_declaration.methods {
+            let function = LoxFunction::new(method_decl, Rc::clone(&self.environment));
+            methods.insert(method_decl.name.lexeme.clone(), function);
+        }
+        let class = LoxClass::new(class_declaration.name.lexeme.clone(), methods);
+        
+        self.get_env_mut().assign(&class_declaration.name, Object::Class(class))?;
+        Ok(())
     }
 
     fn visit_expression_stmt(&mut self, expr: &Expr) -> Result<(), LoxErr> {
@@ -160,6 +179,18 @@ impl Interpreter {
         Ok(())
     }
 
+    fn visit_assign_expr(&mut self, assign_expr: &AssignExpr) -> Result<Object, LoxErr> {
+        let value = self.evaluate(&assign_expr.value)?;
+
+        if let Some(distance) = assign_expr.get_distance() {
+            self.get_env_mut().assign_at(distance, assign_expr.name(), value.clone());
+        } else {
+            self.get_globals_mut().assign(assign_expr.name(), value.clone())?;
+        }
+
+        Ok(value)   // 赋值表达式可以嵌套在其它表达式里，比如：print a = 2;
+    }
+
     fn visit_literal_expr(&self, literal_expr: &LiteralExpr) -> Result<Object, LoxErr> {
         Ok(literal_expr.literal.clone())
     }
@@ -186,7 +217,7 @@ impl Interpreter {
     }
 
     fn visit_call_expr(&mut self, call_expr: &CallExpr) -> Result<Object, LoxErr> {
-        let callee = self.evaluate(&*call_expr.callee)?;
+        let callee = self.evaluate(&*(*call_expr).callee)?;
         let mut arguments = Vec::new();
         for arg in &call_expr.arguments {
             arguments.push(self.evaluate(arg)?);
@@ -202,13 +233,24 @@ impl Interpreter {
             Object::NativeFunction(mut native_function) => {
                 return native_function.call(self, arguments);
             }
+            Object::Class(mut class) => {
+                return class.call(self, arguments);
+            }
             _ => {
                 return Err(LoxErr::Runtime { line: call_expr.paren.line, message: "Can only call functions and classes.".to_string() });
             }
         }
-
-        
     }
+
+    fn visit_get_expr(&mut self, get_expr: &GetExpr) -> Result<Object, LoxErr> {
+        let object = self.evaluate(&*(*get_expr).object)?;
+        if let Object::Instance(instance) = object {
+            return instance.borrow().get(&get_expr.name);
+        }
+        Err(LoxErr::Runtime { line: get_expr.name.line, message: "Only instances have properties.".to_string() })
+
+    }
+
 
     // 逻辑运算符并不承诺会真正返回`true`或`false`，而只是保证它将返回一个具有适当真实性的值。
     fn visit_logical_expr(&mut self, logical_expr: &LogicalExpr) -> Result<Object, LoxErr> {
@@ -224,6 +266,18 @@ impl Interpreter {
             } // else right
         }
         self.evaluate(&logical_expr.right)
+    }
+
+    fn visit_set_expr(&mut self, set_expr: &SetExpr) -> Result<Object, LoxErr> {
+        let object = self.evaluate(&set_expr.object)?;
+        match object {
+            Object::Instance(instance) => {
+                let value = self.evaluate(&set_expr.value)?;
+                instance.borrow_mut().set(&set_expr.name, value.clone());
+                Ok(value)
+            }
+            _ => Err(LoxErr::Runtime { line: set_expr.name.line, message: "Only instances have fields.".to_string() }),
+        }
     }
 
     fn visit_binary_expr(&mut self, binary_expr: &BinaryExpr) -> Result<Object, LoxErr> {
@@ -307,19 +361,6 @@ impl Interpreter {
         self.look_up_variable(variable_expr)
     }
 
-    
-    fn visit_assign_expr(&mut self, assign_expr: &AssignExpr) -> Result<Object, LoxErr> {
-        let value = self.evaluate(&assign_expr.value)?;
-
-        if let Some(distance) = assign_expr.get_distance() {
-            self.get_env_mut().assign_at(distance, assign_expr.name(), value.clone());
-        } else {
-            self.get_globals_mut().assign(assign_expr.name(), value.clone())?;
-        }
-
-        Ok(value)   // 赋值表达式可以嵌套在其它表达式里，比如：print a = 2;
-    }
-        
     fn look_up_variable(&self, val: &impl Resolvable) -> Result<Object, LoxErr> {
         if let Some(distance) = val.get_distance() {
             Ok(self.get_env().get_at(distance, &val.name().lexeme))

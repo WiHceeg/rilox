@@ -9,13 +9,13 @@ pub enum Expr {
     Assign(AssignExpr),
     Binary(BinaryExpr),
     Call(CallExpr),
-    //   Get(GetExpr),
+    Get(GetExpr),
     Grouping(GroupingExpr),
     Literal(LiteralExpr),
     Logical(LogicalExpr),
-    //   Set(SetExpr),
-    //   Super(SuperExpr),
-    //   This(ThisExpr),
+    Set(SetExpr),
+    // Super(SuperExpr),
+    // This(ThisExpr),
     Unary(UnaryExpr),
     Variable(VariableExpr),
 }
@@ -27,13 +27,14 @@ impl fmt::Display for Expr {
             Expr::Assign(v) => v.fmt(f),
             Expr::Binary(v) => v.fmt(f),
             Expr::Call(v) => v.fmt(f),
+            Expr::Get(v) => v.fmt(f),
 
             Expr::Literal(v) => v.fmt(f),
             Expr::Logical(v) => v.fmt(f),
             Expr::Grouping(v) => v.fmt(f),
 
-
-
+            Expr::Set(v) => v.fmt(f),
+            // Expr::This(v) => v.fmt(f),
             Expr::Unary(v) => v.fmt(f),
             Expr::Variable(v) => v.fmt(f),
         }
@@ -124,6 +125,27 @@ impl fmt::Display for CallExpr {
     }
 }
 
+#[derive(Debug, PartialEq, Clone)]
+pub struct GetExpr {
+    pub object: Box<Expr>,
+    pub name: Token,
+}
+
+impl GetExpr {
+    pub fn new(object: Expr, name: Token) -> GetExpr {
+        GetExpr {
+            object: Box::new(object),
+            name: name,
+        }
+    }
+}
+
+impl fmt::Display for GetExpr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "(. {} {})", self.object, self.name.lexeme)
+    }
+}
+
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct GroupingExpr {
@@ -164,14 +186,7 @@ impl LiteralExpr {
 }
 impl fmt::Display for LiteralExpr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match &self.literal {
-            Object::None => write!(f, "nil"),
-            Object::String(v) => write!(f, "{}", v),
-            Object::Number(v) => write!(f, "{}", v),
-            Object::Bool(v) => write!(f, "{}", v),
-            Object::Function(v) => write!(f, "{}", v),
-            Object::NativeFunction(v) => write!(f, "{}", v),
-        }
+        fmt::Display::fmt(&self.literal, f)
     }
 }
 
@@ -195,6 +210,64 @@ impl LogicalExpr {
 impl fmt::Display for LogicalExpr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "({} {} {})", self.operator.lexeme, self.left, self.right)
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct SetExpr {
+    pub object: Box<Expr>,
+    pub name: Token,
+    pub value: Box<Expr>,
+}
+
+impl SetExpr {
+    pub fn new(object: Expr, name: Token, value: Expr) -> SetExpr {
+        SetExpr {
+            object: Box::new(object),
+            name: name,
+            value: Box::new(value),
+        }
+    }
+}
+
+impl fmt::Display for SetExpr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "(={} {} {})", self.object, self.name.lexeme, self.value)
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct ThisExpr {
+    pub keyword: Token,
+    distance: Option<usize>,
+}
+
+impl ThisExpr {
+    pub fn new(keyword: Token) -> ThisExpr {
+        ThisExpr {
+            keyword: keyword,
+            distance: None,
+        }
+    }
+}
+
+impl fmt::Display for ThisExpr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "this")
+    }
+}
+
+impl Resolvable for ThisExpr {
+    fn name(&self) -> &Token {
+        &self.keyword
+    }
+
+    fn set_distance(&mut self, distance: usize) {
+        self.distance = Some(distance);
+    }
+
+    fn get_distance(&self) -> Option<usize> {
+        self.distance
     }
 }
 

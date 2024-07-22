@@ -1,9 +1,9 @@
 use crate::err::LoxErr;
-use crate::stmt::{FunctionDeclaration, Stmt};
+use crate::stmt::{ClassDeclaration, FunctionDeclaration, Stmt};
 use crate::token::Token;
 use crate::object::Object;
 
-use crate::expr::{AssignExpr, CallExpr, Expr, LogicalExpr};
+use crate::expr::{AssignExpr, CallExpr, Expr, GetExpr, LogicalExpr, SetExpr, ThisExpr};
 use crate::expr::{BinaryExpr, GroupingExpr, LiteralExpr, UnaryExpr, VariableExpr};
 use crate::token_type::TokenType;
 
@@ -40,7 +40,7 @@ impl Parser<'_> {
         match self.get_match_type(&[TokenType::Var, TokenType::Fun, TokenType::Class]) {
             Some(TokenType::Var) => self.var_declaration(),
             Some(TokenType::Fun) => self.function_declaration("function"),
-            // Some(TokenType::Class) => self.class_declaration(),
+            Some(TokenType::Class) => self.class_declaration(),
             _ => self.statement(),
         }
     }
@@ -54,11 +54,21 @@ impl Parser<'_> {
         if self.matches(&[TokenType::Equal]) {
             let equals = self.previous().clone();
             let value = self.assignment()?; // 等号后面的表达式
-            if let Expr::Variable(v) = expr {
-                let name = v.name;
-                return Ok(Expr::Assign(AssignExpr::new(name, value)));
+
+            match expr {
+                Expr::Variable(variable_expr) => return Ok(Expr::Assign(AssignExpr::new(variable_expr.name, value))),
+                Expr::Get(get_expr) => return Ok(Expr::Set(SetExpr::new(*get_expr.object, get_expr.name, value))),
+
+                _ => return Err(LoxErr::Parse { line: equals.line, lexeme: equals.lexeme, message: "Invalid assignment target.".to_string() }),
             }
-            return Err(LoxErr::Parse { line: equals.line, lexeme: equals.lexeme, message: "Invalid assignment target.".to_string() })
+
+            
+
+            // if let Expr::Variable(v) = expr {
+            //     let name = v.name;
+            //     return Ok(Expr::Assign(AssignExpr::new(name, value)));
+            // }
+            // return Err(LoxErr::Parse { line: equals.line, lexeme: equals.lexeme, message: "Invalid assignment target.".to_string() })
         }
         Ok(expr)
 
@@ -184,6 +194,12 @@ impl Parser<'_> {
         Ok(Stmt::Return { keyword: keyword, value: value })
     }
 
+    fn expression_statement(&mut self) -> Result<Stmt, LoxErr> {
+        let expr = self.expression()?;
+        self.consume(&TokenType::Semicolon, "Expect ';' after value.")?;
+        Ok(Stmt::Expression{expression: expr})
+    }
+
     fn var_declaration(&mut self) -> Result<Stmt, LoxErr> {
         let name = self.consume(&TokenType::Identifier, "Expect variable name.")?.clone();
         
@@ -196,13 +212,6 @@ impl Parser<'_> {
         Ok(Stmt::Var { name: name, initializer: initializer })
     }
 
-    fn expression_statement(&mut self) -> Result<Stmt, LoxErr> {
-        let expr = self.expression()?;
-        self.consume(&TokenType::Semicolon, "Expect ';' after value.")?;
-        Ok(Stmt::Expression{expression: expr})
-    }
-
-    // 函数定义
     fn function_declaration(&mut self, kind: &str) -> Result<Stmt, LoxErr> {
         let name = self.consume(&TokenType::Identifier, &format!("Expect {} name.", kind))?.clone();
         self.consume(&TokenType::LeftParen, &format!("Expect '(' after {} name.", kind))?;
@@ -226,6 +235,20 @@ impl Parser<'_> {
             name: name,
             params: parameters,
             body: body,
+        } })
+    }
+
+    fn class_declaration(&mut self) -> Result<Stmt, LoxErr> {
+        let name = self.consume(&TokenType::Identifier, "Expect class name.")?.clone();
+        self.consume(&TokenType::LeftBrace, "Expect '{' before class body.")?;
+        let mut methods = Vec::new();
+        while !self.check(&TokenType::RightBrace) && !self.is_at_end() {
+            methods.push(self.function_declaration("method")?.into_function_declaration().unwrap());
+        }
+        self.consume(&TokenType::RightBrace, "Expect '}' after class body.")?;
+        Ok(Stmt::ClassDeclaration { class_declaration: ClassDeclaration {
+            name,
+            methods: methods,
         } })
     }
 
@@ -292,15 +315,27 @@ impl Parser<'_> {
         self.call()
     }
 
+
+
+    // todo 把 call 和 get 分开
     fn call(&mut self) -> Result<Expr, LoxErr> {
         let mut expr = self.primary()?;
 
-        // 这里有个 loop，是因为一个 call 的结果可能也是 callee，比如f1(a1, a2) 的结果是 f2，可以 f1(a1, a2)(b1, b2) 这样调用
+        // 这里有个 loop，是因为一个 call 的结果可能也是 callee，比如f1(a1, a2) 的结果是 f2，可以 f1(a1, a2)(b1, b2) 这样调用。加了 . 后可能是 a.b.c(d)e(f,g).h
         loop {
-            if self.matches(&[TokenType::LeftParen]) {
-                expr = self.finish_call(expr)?;
-            } else {
-                break;
+            // if self.matches(&[TokenType::LeftParen]) {
+            //     expr = self.finish_call(expr)?;
+            // } else {
+            //     break;
+            // }
+
+            match self.get_match_type(&[TokenType::LeftParen, TokenType::Dot]) {
+                Some(TokenType::LeftParen) => expr = self.finish_call(expr)?,
+                Some(TokenType::Dot) => {
+                    let name = self.consume(&TokenType::Identifier, "Expect property name after '.'.")?;
+                    expr = Expr::Get(GetExpr::new(expr, name.clone()));
+                }
+                _ => break,
             }
         }
         Ok(expr)
@@ -326,13 +361,15 @@ impl Parser<'_> {
     }
 
     fn primary(&mut self) -> Result<Expr, LoxErr> {
-        // 原版用的是多个 if else 配合 self.matches，会自动 advance，所以这里记得要手动 advance
+        // 原版用的是多个 if else 配合 self.matches，会自动 advance，所以这里记得要手动 advance。这里还是不要用 get_match_type 了，没必要多写一遍
         match self.peek().token_type {
 
             TokenType::False | TokenType::True | TokenType::Nil | TokenType::Number | TokenType::String => {
                 self.advance();
                 Ok(Expr::Literal(LiteralExpr::new(self.previous().literal.clone())))
             }
+
+
 
             TokenType::Identifier => {
                 self.advance();

@@ -7,9 +7,9 @@ pub enum Stmt {
         statements: Vec<Stmt>,
     },
     
-    // ClassDeclaration {
-    //     class_declaration: ClassDeclaration,
-    // },
+    ClassDeclaration {
+        class_declaration: ClassDeclaration,
+    },
 
     Expression {
         expression: Expr,
@@ -55,6 +55,13 @@ impl Stmt {
         match self {
             Stmt::FunctionDeclaration { .. } => true,
             _ => false,
+        }
+    }
+
+    pub fn into_function_declaration(self) -> Option<FunctionDeclaration> {
+        match self {
+            Stmt::FunctionDeclaration { function_declaration } => Some(function_declaration),
+            _ => None
         }
     }
 }
