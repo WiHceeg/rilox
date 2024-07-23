@@ -40,10 +40,20 @@ impl fmt::Display for LoxClass {
 
 impl LoxCallable for LoxClass {
     fn arity(&self) -> usize {
+        let initializer = self.find_method("init");
+        if let Some(exist_init) = initializer {
+            return exist_init.arity();
+        }
         0
     }
 
-    fn call(&mut self, _interpreter: &mut Interpreter,_argumentss: Vec<Object>) -> Result<Object, LoxErr> {
-        Ok(Object::Instance(Rc::new(RefCell::new(LoxInstance::new(self.clone())))))
+    fn call(&mut self, interpreter: &mut Interpreter, arguments: Vec<Object>) -> Result<Object, LoxErr> {
+        let instance = Rc::new(RefCell::new(LoxInstance::new(self.clone())));
+        let initializer = self.find_method("init");
+        if let Some(exist_init) = initializer {
+            exist_init.bind(Rc::clone(&instance)).call(interpreter, arguments)?;    // 在返回 instance 前，调用它的 init 方法，在调用它的 init 方法前，让它 bind 一下找到 this
+        }
+
+        Ok(Object::Instance(instance))
     }
 }

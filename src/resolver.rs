@@ -12,6 +12,7 @@ pub struct Resolver {
     pub had_resolve_error: bool,
     scopes: Vec<HashMap<String, bool>>, // 作用域栈，scopes[i] 中值为 false 代表已经声明，true 代表已经定义
     current_function: FunctionType,
+    current_class: ClassType,
 }
 
 
@@ -22,6 +23,7 @@ impl Resolver {
             had_resolve_error: false,
             scopes: Vec::new(),
             current_function: FunctionType::None,
+            current_class: ClassType::None,
         }
     }
 
@@ -58,7 +60,7 @@ impl Resolver {
             Expr::Literal(_literal_expr) => self.visit_literal_expr(),
             Expr::Logical(logical_expr) => self.visit_logical_expr(logical_expr),
             Expr::Set(set_expr) => self.visit_set_expr(set_expr),
-            // Expr::This(this_expr) => self.visit_this_expr(this_expr),
+            Expr::This(this_expr) => self.visit_this_expr(this_expr),
             Expr::Unary(unary_expr) => self.visit_unary_expr(unary_expr),
             Expr::Variable(variable_expr) => self.visit_variable_expr(variable_expr),
             
@@ -125,12 +127,27 @@ impl Resolver {
     }
 
     fn visit_class_stmt(&mut self, class_declaration: &mut ClassDeclaration) -> Result<(), LoxErr> {
+
+        let enclosing_class = self.current_class;
+        self.current_class = ClassType::Class;
+
         self.declare(&class_declaration.name)?;
         self.define(&class_declaration.name);
+
+        self.begin_scope();     // 这个 scope 里有 this，是 get 一个 method 时，创建的新环境
+        self.scopes.last_mut().unwrap().insert("this".to_string(), true);
+
         for method in &mut class_declaration.methods {
-            self.resolve_function(method, FunctionType::Method)?;
+            let function_type = if &method.name.lexeme == "init" {
+                FunctionType::Initializer
+            } else {
+                FunctionType::Method
+            };
+            self.resolve_function(method, function_type)?;
         }
 
+        self.end_scope();
+        self.current_class = enclosing_class;
         Ok(())
     }
 
@@ -177,6 +194,9 @@ impl Resolver {
         }
 
         if let Some(exist_ret_value) = value {
+            if self.current_function == FunctionType::Initializer {
+                return Err(LoxErr::Resolve { line: keyword.line, message: "Can't return a value from an initializer.".to_string() });
+            }
             self.resolve_expr(exist_ret_value)?;
         }
         Ok(())
@@ -246,6 +266,9 @@ impl Resolver {
     }
 
     fn visit_this_expr(&mut self, this_expr: &mut ThisExpr) -> Result<(), LoxErr> {
+        if self.current_class == ClassType::None {
+            return Err(LoxErr::Resolve { line: this_expr.keyword.line, message: "Can't use 'this' outside of a class.".to_string() })
+        }
         self.resolve_local(this_expr);
         Ok(())
     }
@@ -261,5 +284,12 @@ impl Resolver {
 enum FunctionType {
     None,
     Function,
+    Initializer,    // 构造函数
     Method,
+}
+
+#[derive(Debug, PartialEq, Clone, Copy)]
+enum ClassType {
+    None,
+    Class,
 }

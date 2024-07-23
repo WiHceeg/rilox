@@ -15,7 +15,7 @@ pub enum Expr {
     Logical(LogicalExpr),
     Set(SetExpr),
     // Super(SuperExpr),
-    // This(ThisExpr),
+    This(ThisExpr),
     Unary(UnaryExpr),
     Variable(VariableExpr),
 }
@@ -34,7 +34,7 @@ impl fmt::Display for Expr {
             Expr::Grouping(v) => v.fmt(f),
 
             Expr::Set(v) => v.fmt(f),
-            // Expr::This(v) => v.fmt(f),
+            Expr::This(v) => v.fmt(f),
             Expr::Unary(v) => v.fmt(f),
             Expr::Variable(v) => v.fmt(f),
         }

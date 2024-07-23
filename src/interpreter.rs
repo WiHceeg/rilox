@@ -4,13 +4,12 @@ use std::cell::{RefCell, Ref, RefMut};
 
 
 use crate::environment::Environment;
-use crate::lox::Lox;
 use crate::lox_callable::LoxCallable;
 use crate::lox_class::LoxClass;
 use crate::lox_function::LoxFunction;
 use crate::resolvable::Resolvable;
 use crate::token::Token;
-use crate::expr::{AssignExpr, BinaryExpr, CallExpr, Expr, GetExpr, GroupingExpr, LiteralExpr, LogicalExpr, SetExpr, UnaryExpr, VariableExpr};
+use crate::expr::{AssignExpr, BinaryExpr, CallExpr, Expr, GetExpr, GroupingExpr, LiteralExpr, LogicalExpr, SetExpr, ThisExpr, UnaryExpr, VariableExpr};
 use crate::err::LoxErr;
 use crate::stmt::{ClassDeclaration, FunctionDeclaration, Stmt};
 use crate::object::{NativeFunction, Object};
@@ -71,6 +70,7 @@ impl Interpreter {
             Expr::Literal(literal_expr) => self.visit_literal_expr(literal_expr),
             Expr::Logical(logical_expr) => self.visit_logical_expr(logical_expr),
             Expr::Set(set_expr) => self.visit_set_expr(set_expr),
+            Expr::This(this_expr) => self.visit_this_expr(this_expr),
             Expr::Unary(unary_expr) => self.visit_unary_expr(unary_expr),
             Expr::Variable(variable_expr) => self.visit_variable_expr(variable_expr),
         }
@@ -118,7 +118,7 @@ impl Interpreter {
 
         let mut methods = HashMap::new();
         for method_decl in &class_declaration.methods {
-            let function = LoxFunction::new(method_decl, Rc::clone(&self.environment));
+            let function = LoxFunction::new(method_decl, Rc::clone(&self.environment), &method_decl.name.lexeme == "init");
             methods.insert(method_decl.name.lexeme.clone(), function);
         }
         let class = LoxClass::new(class_declaration.name.lexeme.clone(), methods);
@@ -133,7 +133,7 @@ impl Interpreter {
     }
 
     fn visit_function_declaration_stmt(&mut self, function_declaration: &FunctionDeclaration) -> Result<(), LoxErr> {
-        let function = LoxFunction::new(function_declaration, Rc::clone(&self.environment));
+        let function = LoxFunction::new(function_declaration, Rc::clone(&self.environment), false);
         self.get_env_mut().define(&function_declaration.name.lexeme, Object::Function(function));
         Ok(())
     }
@@ -245,7 +245,7 @@ impl Interpreter {
     fn visit_get_expr(&mut self, get_expr: &GetExpr) -> Result<Object, LoxErr> {
         let object = self.evaluate(&*(*get_expr).object)?;
         if let Object::Instance(instance) = object {
-            return instance.borrow().get(&get_expr.name);
+            return instance.borrow().get(&get_expr.name, &instance);
         }
         Err(LoxErr::Runtime { line: get_expr.name.line, message: "Only instances have properties.".to_string() })
 
@@ -280,9 +280,12 @@ impl Interpreter {
         }
     }
 
+    fn visit_this_expr(&mut self, this_expr: &ThisExpr) -> Result<Object, LoxErr> {
+        self.look_up_variable(this_expr)    // 也就是说，这个 this 最终会变成 Instance 本身 
+    }
+
+
     fn visit_binary_expr(&mut self, binary_expr: &BinaryExpr) -> Result<Object, LoxErr> {
-
-
         let left = self.evaluate(&binary_expr.left)?;
         let right = self.evaluate(&binary_expr.right)?;
         match binary_expr.operator.token_type {

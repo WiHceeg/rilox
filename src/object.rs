@@ -1,4 +1,3 @@
-use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::fmt::{self, Debug};
@@ -45,61 +44,6 @@ impl fmt::Display for Object {
         }
     }
 }
-
-// impl Object {
-
-//     pub fn is_none(&self) -> bool {
-//         match self {
-//             Object::None => true,
-//             _ => false,
-//         }
-//     }
-
-//     pub fn is_bool(&self) -> bool {
-//         match self {
-//             Object::Bool(_) => true,
-//             _ => false,
-//         }
-//     }
-
-//     pub fn is_string(&self) -> bool {
-//         match self {
-//             Object::String(_) => true,
-//             _ => false,
-//         }
-//     }
-
-//     pub fn is_number(&self) -> bool {
-//         match self {
-//             Object::Number(_) => true,
-//             _ => false,
-//         }
-//     }
-
-//     pub fn get_bool(&self) -> Option<bool> {
-//         if let Object::Bool(b) = self {
-//             Some(*b)
-//         } else {
-//             None
-//         }
-//     }
-
-//     pub fn get_string(&self) -> Option<String> {
-//         if let Object::String(s) = self {
-//             Some(s.clone())
-//         } else {
-//             None
-//         }
-//     }
-
-//     pub fn get_number(&self) -> Option<f64> {
-//         if let Object::Number(n) = self {
-//             Some(*n)
-//         } else {
-//             None
-//         }
-//     }
-// }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct NativeFunction {

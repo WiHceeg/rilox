@@ -369,7 +369,10 @@ impl Parser<'_> {
                 Ok(Expr::Literal(LiteralExpr::new(self.previous().literal.clone())))
             }
 
-
+            TokenType::This => {
+                self.advance();
+                Ok(Expr::This(ThisExpr::new(self.previous().clone())))
+            }
 
             TokenType::Identifier => {
                 self.advance();
