@@ -240,6 +240,14 @@ impl Parser<'_> {
 
     fn class_declaration(&mut self) -> Result<Stmt, LoxErr> {
         let name = self.consume(&TokenType::Identifier, "Expect class name.")?.clone();
+        let superclass = if self.matches(&[TokenType::Less]) {
+            self.consume(&TokenType::Identifier, "Expect superclass name.")?;
+            Some(VariableExpr::new(self.previous().clone()))
+        } else {
+            None
+        };
+
+
         self.consume(&TokenType::LeftBrace, "Expect '{' before class body.")?;
         let mut methods = Vec::new();
         while !self.check(&TokenType::RightBrace) && !self.is_at_end() {
@@ -247,7 +255,8 @@ impl Parser<'_> {
         }
         self.consume(&TokenType::RightBrace, "Expect '}' after class body.")?;
         Ok(Stmt::ClassDeclaration { class_declaration: ClassDeclaration {
-            name,
+            name: name,
+            superclass: superclass,
             methods: methods,
         } })
     }

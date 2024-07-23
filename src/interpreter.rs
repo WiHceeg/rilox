@@ -114,6 +114,16 @@ impl Interpreter {
     }
 
     fn visit_class_declaration_stmt(&mut self, class_declaration: &ClassDeclaration) -> Result<(), LoxErr> {
+
+        let mut superclass = None;
+        if let Some(exist_superclass) = &class_declaration.superclass {
+            let superclass_obj = self.visit_variable_expr(exist_superclass)?;
+            let Object::Class(lox_class) = superclass_obj else {
+                return Err(LoxErr::Runtime { line: exist_superclass.name.line, message: "Superclass must be a class.".to_string() });
+            };
+            superclass = Some(Box::new(lox_class));
+        }
+
         self.get_env_mut().define(&class_declaration.name.lexeme, Object::None);
 
         let mut methods = HashMap::new();
@@ -121,7 +131,7 @@ impl Interpreter {
             let function = LoxFunction::new(method_decl, Rc::clone(&self.environment), &method_decl.name.lexeme == "init");
             methods.insert(method_decl.name.lexeme.clone(), function);
         }
-        let class = LoxClass::new(class_declaration.name.lexeme.clone(), methods);
+        let class = LoxClass::new(class_declaration.name.lexeme.clone(), superclass, methods);
         
         self.get_env_mut().assign(&class_declaration.name, Object::Class(class))?;
         Ok(())

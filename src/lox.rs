@@ -30,7 +30,8 @@ declaration    → classDecl      // 类的方法没有前导的`fun`关键字
                | varDecl
                | statement ;
 
-classDecl      → "class" IDENTIFIER "{" function* "}" ;
+classDecl      → "class" IDENTIFIER ( "<" IDENTIFIER )?
+                 "{" function* "}" ;
 funDecl        → "fun" function ;
 function       → IDENTIFIER "(" parameters? ")" block ;
 parameters     → IDENTIFIER ( "," IDENTIFIER )* ;

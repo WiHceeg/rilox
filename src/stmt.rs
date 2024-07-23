@@ -1,4 +1,4 @@
-use crate::expr::Expr;
+use crate::expr::{Expr, VariableExpr};
 use crate::token::Token;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -69,5 +69,6 @@ impl Stmt {
 #[derive(Debug, PartialEq, Clone)]
 pub struct ClassDeclaration {
     pub name: Token,
+    pub superclass: Option<VariableExpr>,
     pub methods: Vec<FunctionDeclaration>,
 }

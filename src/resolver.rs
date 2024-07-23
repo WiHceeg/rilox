@@ -39,7 +39,7 @@ impl Resolver {
     fn resolve_stmt(&mut self, stmt: &mut Stmt) -> Result<(), LoxErr> {
         match stmt {
             Stmt::Block { statements } => self.visit_block_stmt(statements),
-            Stmt::ClassDeclaration { class_declaration } => self.visit_class_stmt(class_declaration),
+            Stmt::ClassDeclaration { class_declaration } => self.visit_class_declaration_stmt(class_declaration),
             Stmt::Expression { expression } => self.visit_expression_stmt(expression),
             Stmt::FunctionDeclaration { function_declaration } => self.visit_function_declaration_stmt(function_declaration),
             Stmt::If { condition, then_branch, else_branch } => self.visit_if_stmt(condition, then_branch, else_branch),
@@ -126,13 +126,20 @@ impl Resolver {
         Ok(())
     }
 
-    fn visit_class_stmt(&mut self, class_declaration: &mut ClassDeclaration) -> Result<(), LoxErr> {
+    fn visit_class_declaration_stmt(&mut self, class_declaration: &mut ClassDeclaration) -> Result<(), LoxErr> {
 
         let enclosing_class = self.current_class;
         self.current_class = ClassType::Class;
 
         self.declare(&class_declaration.name)?;
         self.define(&class_declaration.name);
+
+        if let Some(exist_superclass) = &mut class_declaration.superclass {
+            if &class_declaration.name.lexeme == &exist_superclass.name.lexeme {
+                return Err(LoxErr::Resolve { line: exist_superclass.name.line, message: "A class can't inherit from itself.".to_string() });
+            }
+            self.visit_variable_expr(exist_superclass)?;
+        }
 
         self.begin_scope();     // 这个 scope 里有 this，是 get 一个 method 时，创建的新环境
         self.scopes.last_mut().unwrap().insert("this".to_string(), true);

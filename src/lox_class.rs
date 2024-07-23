@@ -16,19 +16,27 @@ use crate::err::LoxErr;
 #[derive(Debug, PartialEq, Clone)]
 pub struct LoxClass {
     pub name: String,
+    pub superclass: Option<Box<LoxClass>>,
     pub methods: HashMap<String, LoxFunction>,
 }
 
 impl LoxClass {
-    pub fn new(name: String, methods: HashMap<String, LoxFunction>) -> LoxClass {
+    pub fn new(name: String, superclass: Option<Box<LoxClass>>, methods: HashMap<String, LoxFunction>) -> LoxClass {
         LoxClass{
             name: name,
+            superclass: superclass,
             methods: methods,
         }
     }
 
     pub fn find_method(&self, name: &str) -> Option<LoxFunction> {
-        self.methods.get(name).cloned()
+        if let Some(method) = self.methods.get(name) {
+            return Some(method.clone());
+        }
+        if let Some(exist_super) = &self.superclass {
+            return exist_super.find_method(name);
+        }
+        None
     }
 }
 
