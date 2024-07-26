@@ -9,6 +9,7 @@ pub enum Expr {
     Assign(AssignExpr),
     Binary(BinaryExpr),
     Comma(CommaExpr),
+    Conditional(ConditionalExpr), // 三元操作符表达式 ? :
     Call(CallExpr),
     Get(GetExpr),
     Grouping(GroupingExpr),
@@ -29,6 +30,7 @@ impl fmt::Display for Expr {
             Expr::Binary(v) => v.fmt(f),
             Expr::Call(v) => v.fmt(f),
             Expr::Comma(v) => v.fmt(f),
+            Expr::Conditional(v) => v.fmt(f),
             Expr::Get(v) => v.fmt(f),
 
             Expr::Literal(v) => v.fmt(f),
@@ -144,6 +146,29 @@ impl CommaExpr {
 impl fmt::Display for CommaExpr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "(comma {:?})", self.exprs)
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct ConditionalExpr {
+    pub condition: Box<Expr>,
+    pub then_branch: Box<Expr>,
+    pub else_branch: Box<Expr>,
+}
+
+impl ConditionalExpr {
+    pub fn new(condition: Expr, then_branch: Expr, else_branch: Expr) -> ConditionalExpr {
+        ConditionalExpr {
+            condition: Box::new(condition),
+            then_branch: Box::new(then_branch),
+            else_branch: Box::new(else_branch),
+        }
+    }
+}
+
+impl fmt::Display for ConditionalExpr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}: {}? {})", self.condition, self.then_branch, self.else_branch)
     }
 }
 

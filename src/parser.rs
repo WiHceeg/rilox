@@ -3,7 +3,7 @@ use crate::stmt::{ClassDeclaration, FunctionDeclaration, Stmt};
 use crate::token::Token;
 use crate::object::Object;
 
-use crate::expr::{AssignExpr, CallExpr, CommaExpr, Expr, GetExpr, LogicalExpr, SetExpr, SuperExpr, ThisExpr};
+use crate::expr::{AssignExpr, CallExpr, CommaExpr, ConditionalExpr, Expr, GetExpr, LogicalExpr, SetExpr, SuperExpr, ThisExpr};
 use crate::expr::{BinaryExpr, GroupingExpr, LiteralExpr, UnaryExpr, VariableExpr};
 use crate::token_type::TokenType;
 
@@ -63,7 +63,7 @@ impl Parser<'_> {
     }
 
     fn assignment(&mut self) -> Result<Expr, LoxErr> {
-        let expr = self.or()?;    // （在可能存在的等号前面的）表达式
+        let expr = self.conditional()?;    // （在可能存在的等号前面的）表达式
         if self.matches(&[TokenType::Equal]) {
             let equals = self.previous().clone();
             let value = self.assignment()?; // 等号后面的表达式
@@ -76,7 +76,17 @@ impl Parser<'_> {
             }            
         }
         Ok(expr)
+    }
 
+    fn conditional(&mut self) -> Result<Expr, LoxErr> {
+        let mut expr = self.or()?;
+        if self.matches(&[TokenType::Question]) {
+            let then_branch = self.expression()?;
+            self.consume(&TokenType::Colon, "Expect ':' after then branch of conditional expression.")?;
+            let else_branch = self.conditional()?;
+            expr = Expr::Conditional(ConditionalExpr::new(expr, then_branch, else_branch));
+        }
+        Ok(expr)
     }
 
     fn or(&mut self) -> Result<Expr, LoxErr> {

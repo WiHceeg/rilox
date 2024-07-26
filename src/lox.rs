@@ -5,7 +5,8 @@
 
 expression     -> assignment ( "," assignment )*    // 支持了逗号表达式
 assignment     → ( call "." )? IDENTIFIER "=" assignment
-               | logic_or ;
+               | conditional ;
+conditional    → logic_or ( "?" expression ":" conditional )? ; // 三元表达式是右结合，因此 : 后面还是 conditional
 logic_or       → logic_and ( "or" logic_and )* ;
 logic_and      → equality ( "and" equality )* ;
 equality       → comparison ( ( "!=" | "==" ) comparison )* ;

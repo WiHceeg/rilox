@@ -74,10 +74,12 @@ impl Scanner {
             ')' => self.push_token(TokenType::RightParen, Object::None),
             '{' => self.push_token(TokenType::LeftBrace, Object::None),
             '}' => self.push_token(TokenType::RightBrace, Object::None),
+            ':' => self.push_token(TokenType::Colon, Object::None),
             ',' => self.push_token(TokenType::Comma, Object::None),
             '.' => self.push_token(TokenType::Dot, Object::None),
             '-' => self.push_token(TokenType::Minus, Object::None),
             '+' => self.push_token(TokenType::Plus, Object::None),
+            '?' => self.push_token(TokenType::Question, Object::None),
             ';' => self.push_token(TokenType::Semicolon, Object::None),
             '*' => self.push_token(TokenType::Star, Object::None),
 
@@ -237,6 +239,5 @@ impl Scanner {
         }
 
     }
-
 }
 
