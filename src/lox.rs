@@ -3,7 +3,7 @@
 后缀`+`与此类似，但要求前面的生成式至少出现一次
 后缀`?`表示可选生成式，它之前的生成式可以出现零次或一次，但不能出现多次
 
-expression     → assignment ;
+expression     -> assignment ( "," assignment )*    // 支持了逗号表达式
 assignment     → ( call "." )? IDENTIFIER "=" assignment
                | logic_or ;
 logic_or       → logic_and ( "or" logic_and )* ;
@@ -14,7 +14,7 @@ term           → factor ( ( "-" | "+" ) factor )* ;     // term 项，项之�
 factor         → unary ( ( "/" | "*" ) unary )* ;       // factor 因子，因子之间通常通过乘法或除法连接
 unary          → ( "!" | "-" ) unary | call ;
 call           → primary ( "(" arguments? ")" | "." IDENTIFIER )* ;     // . 也是一种 call
-arguments      → expression ( "," expression )* ;
+arguments      → assignment ( "," assignment )* ;   // 这里之前是 expression，但是现在 expression 里可能有逗号，就改成没有逗号的 assignment
 primary        → "true" | "false" | "nil" | "this"
                | NUMBER | STRING | IDENTIFIER | "(" expression ")"
                | "super" "." IDENTIFIER ;
@@ -153,7 +153,7 @@ impl Lox {
             return Ok(())
         }
 
-        // 看下 statements 长啥样
+        // 可以看下 statements 长啥样
         // dbg!(&statements);
 
         // 解释执行遇到错误的话，内部会处理

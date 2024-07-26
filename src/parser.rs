@@ -3,7 +3,7 @@ use crate::stmt::{ClassDeclaration, FunctionDeclaration, Stmt};
 use crate::token::Token;
 use crate::object::Object;
 
-use crate::expr::{AssignExpr, CallExpr, Expr, GetExpr, LogicalExpr, SetExpr, SuperExpr, ThisExpr};
+use crate::expr::{AssignExpr, CallExpr, CommaExpr, Expr, GetExpr, LogicalExpr, SetExpr, SuperExpr, ThisExpr};
 use crate::expr::{BinaryExpr, GroupingExpr, LiteralExpr, UnaryExpr, VariableExpr};
 use crate::token_type::TokenType;
 
@@ -46,7 +46,20 @@ impl Parser<'_> {
     }
 
     fn expression(&mut self) -> Result<Expr, LoxErr> {
-        self.assignment()
+        self.comma_expression()
+    }
+
+    fn comma_expression(&mut self) -> Result<Expr, LoxErr> {
+        let mut exprs = Vec::new();
+        exprs.push(self.assignment()?);
+        while self.matches(&[TokenType::Comma]) {
+            exprs.push(self.assignment()?);
+        }
+        if exprs.len() == 1 {
+            return Ok(exprs.pop().unwrap());
+        } else {
+            return Ok(Expr::Comma(CommaExpr::new(exprs)));
+        }
     }
 
     fn assignment(&mut self) -> Result<Expr, LoxErr> {
@@ -60,15 +73,7 @@ impl Parser<'_> {
                 Expr::Get(get_expr) => return Ok(Expr::Set(SetExpr::new(*get_expr.object, get_expr.name, value))),
 
                 _ => return Err(LoxErr::Parse { line: equals.line, lexeme: equals.lexeme, message: "Invalid assignment target.".to_string() }),
-            }
-
-            
-
-            // if let Expr::Variable(v) = expr {
-            //     let name = v.name;
-            //     return Ok(Expr::Assign(AssignExpr::new(name, value)));
-            // }
-            // return Err(LoxErr::Parse { line: equals.line, lexeme: equals.lexeme, message: "Invalid assignment target.".to_string() })
+            }            
         }
         Ok(expr)
 
@@ -359,7 +364,7 @@ impl Parser<'_> {
                     eprintln!("{}", LoxErr::Parse { line: self.peek().line, lexeme: self.peek().lexeme.clone(), message: "Can't have more than 255 arguments.".to_string() });
                     
                 }
-                arguments.push(self.expression()?);
+                arguments.push(self.assignment()?);     // 函数调用的参数列表里的 expression 不支持逗号，只能是 assignment
                 if !self.matches(&[TokenType::Comma]) {
                     break;
                 }

@@ -9,7 +9,7 @@ use crate::lox_class::LoxClass;
 use crate::lox_function::LoxFunction;
 use crate::resolvable::Resolvable;
 use crate::token::Token;
-use crate::expr::{AssignExpr, BinaryExpr, CallExpr, Expr, GetExpr, GroupingExpr, LiteralExpr, LogicalExpr, SetExpr, SuperExpr, ThisExpr, UnaryExpr, VariableExpr};
+use crate::expr::{AssignExpr, BinaryExpr, CallExpr, CommaExpr, Expr, GetExpr, GroupingExpr, LiteralExpr, LogicalExpr, SetExpr, SuperExpr, ThisExpr, UnaryExpr, VariableExpr};
 use crate::err::LoxErr;
 use crate::stmt::{ClassDeclaration, FunctionDeclaration, Stmt};
 use crate::object::{NativeFunction, Object};
@@ -65,6 +65,7 @@ impl Interpreter {
             Expr::Assign(assign_expr) => self.visit_assign_expr(assign_expr),
             Expr::Binary(binary_expr) => self.visit_binary_expr(binary_expr),
             Expr::Call(call_expr) => self.visit_call_expr(call_expr),
+            Expr::Comma(comma_expr) => self.visit_comma_expr(comma_expr),
             Expr::Get(get_expr) => self.visit_get_expr(get_expr),
             Expr::Grouping(grouping_expr) => self.visit_grouping_expr(grouping_expr),
             Expr::Literal(literal_expr) => self.visit_literal_expr(literal_expr),
@@ -264,6 +265,14 @@ impl Interpreter {
                 return Err(LoxErr::Runtime { line: call_expr.paren.line, message: "Can only call functions and classes.".to_string() });
             }
         }
+    }
+
+    fn visit_comma_expr(&mut self, comma_expr: &CommaExpr) -> Result<Object, LoxErr> {
+        let mut res = Object::default();
+        for expr in &comma_expr.exprs {
+            res = self.evaluate(expr)?;
+        }
+        Ok(res)
     }
 
     fn visit_get_expr(&mut self, get_expr: &GetExpr) -> Result<Object, LoxErr> {

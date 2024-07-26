@@ -8,6 +8,7 @@ use std::fmt;
 pub enum Expr {
     Assign(AssignExpr),
     Binary(BinaryExpr),
+    Comma(CommaExpr),
     Call(CallExpr),
     Get(GetExpr),
     Grouping(GroupingExpr),
@@ -27,6 +28,7 @@ impl fmt::Display for Expr {
             Expr::Assign(v) => v.fmt(f),
             Expr::Binary(v) => v.fmt(f),
             Expr::Call(v) => v.fmt(f),
+            Expr::Comma(v) => v.fmt(f),
             Expr::Get(v) => v.fmt(f),
 
             Expr::Literal(v) => v.fmt(f),
@@ -125,6 +127,26 @@ impl fmt::Display for CallExpr {
         write!(f, "(call {} {:?})", self.callee, self.arguments)
     }
 }
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct CommaExpr {
+    pub exprs: Vec<Expr>,
+}
+
+impl CommaExpr {
+    pub fn new(exprs: Vec<Expr>) -> CommaExpr {
+        CommaExpr {
+            exprs: exprs,
+        }
+    }
+}
+
+impl fmt::Display for CommaExpr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "(comma {:?})", self.exprs)
+    }
+}
+
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct GetExpr {

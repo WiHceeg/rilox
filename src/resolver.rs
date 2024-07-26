@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 
 use crate::err::LoxErr;
-use crate::expr::{AssignExpr, BinaryExpr, CallExpr, Expr, GetExpr, GroupingExpr, LogicalExpr, SetExpr, SuperExpr, ThisExpr, UnaryExpr, VariableExpr};
+use crate::expr::{AssignExpr, BinaryExpr, CallExpr, CommaExpr, Expr, GetExpr, GroupingExpr, LogicalExpr, SetExpr, SuperExpr, ThisExpr, UnaryExpr, VariableExpr};
 
 use crate::resolvable::Resolvable;
 use crate::stmt::{ClassDeclaration, FunctionDeclaration, Stmt};
@@ -55,6 +55,7 @@ impl Resolver {
             Expr::Assign(assign_expr) => self.visit_assign_expr(assign_expr),
             Expr::Binary(binary_expr) => self.visit_binary_expr(binary_expr),
             Expr::Call(call_expr) => self.visit_call_expr(call_expr),
+            Expr::Comma(comma_expr) => self.visit_comma_expr(comma_expr),
             Expr::Get(get_expr) => self.visit_get_expr(get_expr),
             Expr::Grouping(grouping_expr) => self.visit_grouping_expr(grouping_expr),
             Expr::Literal(_literal_expr) => self.visit_literal_expr(),
@@ -255,6 +256,13 @@ impl Resolver {
         self.resolve_expr(&mut *(*call_expr).callee)?;
         for argument in &mut call_expr.arguments {
             self.resolve_expr(argument)?;
+        }
+        Ok(())
+    }
+
+    fn visit_comma_expr(&mut self, comma_expr: &mut CommaExpr) -> Result<(), LoxErr> {
+        for expr in &mut comma_expr.exprs {
+            self.resolve_expr(expr)?;
         }
         Ok(())
     }
