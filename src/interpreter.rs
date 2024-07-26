@@ -407,16 +407,16 @@ impl Interpreter {
                 }
             }
             TokenType::Plus => {
-                if let (Object::Number(left_number), Object::Number(right_number)) = (&left, &right) {
-                    return Ok(Object::Number(left_number + right_number));
+                match (&left, &right) {
+                    (Object::Number(left_number), Object::Number(right_number)) => Ok(Object::Number(left_number + right_number)),
+                    (Object::String(left_string), Object::String(right_string)) => Ok(Object::String(format!("{}{}", left_string, right_string))),
+                    // 支持数字和字符串相加
+                    (Object::Number(left_number), Object::String(right_string)) => Ok(Object::String(format!("{}{}", left_number, right_string))),
+                    (Object::String(left_string), Object::Number(right_number)) => Ok(Object::String(format!("{}{}", left_string, right_number))),
+                    _ => Err(LoxErr::Runtime { line: binary_expr.operator.line, message: "Operands must be two numbers or two strings.".to_string() })
                 }
-                if let (Object::String(left_string), Object::String(right_string)) = (&left, &right) {
-                    return Ok(Object::String(format!("{}{}", left_string, right_string)));
-                }
-                Err(LoxErr::Runtime { line: binary_expr.operator.line, message: "Operands must be two numbers or two strings.".to_string() })
             }
             
-
             _ => unreachable!("Impossible operator for binary expr."),
         }
         
