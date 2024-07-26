@@ -52,7 +52,7 @@ pub struct NativeFunction {
 
 impl fmt::Display for NativeFunction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "<native fn {}", self.name)
+        write!(f, "<native fn {}>", self.name)
     }
 }
 

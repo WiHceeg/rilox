@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 
 use crate::err::LoxErr;
-use crate::expr::{AssignExpr, BinaryExpr, CallExpr, Expr, GetExpr, GroupingExpr, LogicalExpr, SetExpr, ThisExpr, UnaryExpr, VariableExpr};
+use crate::expr::{AssignExpr, BinaryExpr, CallExpr, Expr, GetExpr, GroupingExpr, LogicalExpr, SetExpr, SuperExpr, ThisExpr, UnaryExpr, VariableExpr};
 
 use crate::resolvable::Resolvable;
 use crate::stmt::{ClassDeclaration, FunctionDeclaration, Stmt};
@@ -60,6 +60,7 @@ impl Resolver {
             Expr::Literal(_literal_expr) => self.visit_literal_expr(),
             Expr::Logical(logical_expr) => self.visit_logical_expr(logical_expr),
             Expr::Set(set_expr) => self.visit_set_expr(set_expr),
+            Expr::Super(super_expr) => self.visit_super_expr(super_expr),
             Expr::This(this_expr) => self.visit_this_expr(this_expr),
             Expr::Unary(unary_expr) => self.visit_unary_expr(unary_expr),
             Expr::Variable(variable_expr) => self.visit_variable_expr(variable_expr),
@@ -138,7 +139,13 @@ impl Resolver {
             if &class_declaration.name.lexeme == &exist_superclass.name.lexeme {
                 return Err(LoxErr::Resolve { line: exist_superclass.name.line, message: "A class can't inherit from itself.".to_string() });
             }
+
+            self.current_class = ClassType::SubClass;
             self.visit_variable_expr(exist_superclass)?;
+
+            self.begin_scope(); // 创建超类环境
+            self.scopes.last_mut().unwrap().insert("super".to_string(), true);
+
         }
 
         self.begin_scope();     // 这个 scope 里有 this，是 get 一个 method 时，创建的新环境
@@ -154,6 +161,12 @@ impl Resolver {
         }
 
         self.end_scope();
+
+        if class_declaration.superclass.is_some() {
+            self.end_scope();
+            
+        }
+
         self.current_class = enclosing_class;
         Ok(())
     }
@@ -272,6 +285,16 @@ impl Resolver {
         Ok(())
     }
 
+    fn visit_super_expr(&mut self, super_expr: &mut SuperExpr) -> Result<(), LoxErr> {
+        if self.current_class == ClassType::None {
+            return Err(LoxErr::Resolve { line: super_expr.keyword.line, message: "Can't use 'super' outside of a class.".to_string() });
+        } else if self.current_class != ClassType::SubClass {
+            return Err(LoxErr::Resolve { line: super_expr.keyword.line, message: "Can't use 'super' in a class with no superclass.".to_string() });
+        }
+        self.resolve_local(super_expr);
+        Ok(())
+    }
+
     fn visit_this_expr(&mut self, this_expr: &mut ThisExpr) -> Result<(), LoxErr> {
         if self.current_class == ClassType::None {
             return Err(LoxErr::Resolve { line: this_expr.keyword.line, message: "Can't use 'this' outside of a class.".to_string() })
@@ -299,4 +322,5 @@ enum FunctionType {
 enum ClassType {
     None,
     Class,
+    SubClass,
 }

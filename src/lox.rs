@@ -15,11 +15,9 @@ factor         → unary ( ( "/" | "*" ) unary )* ;       // factor 因子，因
 unary          → ( "!" | "-" ) unary | call ;
 call           → primary ( "(" arguments? ")" | "." IDENTIFIER )* ;     // . 也是一种 call
 arguments      → expression ( "," expression )* ;
-primary        → "true" | "false" | "nil"
-               | NUMBER | STRING
-               | "(" expression ")"
-               | IDENTIFIER ;
-
+primary        → "true" | "false" | "nil" | "this"
+               | NUMBER | STRING | IDENTIFIER | "(" expression ")"
+               | "super" "." IDENTIFIER ;
 */
 
 /*

@@ -9,7 +9,7 @@ use crate::lox_class::LoxClass;
 use crate::lox_function::LoxFunction;
 use crate::resolvable::Resolvable;
 use crate::token::Token;
-use crate::expr::{AssignExpr, BinaryExpr, CallExpr, Expr, GetExpr, GroupingExpr, LiteralExpr, LogicalExpr, SetExpr, ThisExpr, UnaryExpr, VariableExpr};
+use crate::expr::{AssignExpr, BinaryExpr, CallExpr, Expr, GetExpr, GroupingExpr, LiteralExpr, LogicalExpr, SetExpr, SuperExpr, ThisExpr, UnaryExpr, VariableExpr};
 use crate::err::LoxErr;
 use crate::stmt::{ClassDeclaration, FunctionDeclaration, Stmt};
 use crate::object::{NativeFunction, Object};
@@ -70,6 +70,7 @@ impl Interpreter {
             Expr::Literal(literal_expr) => self.visit_literal_expr(literal_expr),
             Expr::Logical(logical_expr) => self.visit_logical_expr(logical_expr),
             Expr::Set(set_expr) => self.visit_set_expr(set_expr),
+            Expr::Super(super_expr) => self.visit_super_expr(super_expr),
             Expr::This(this_expr) => self.visit_this_expr(this_expr),
             Expr::Unary(unary_expr) => self.visit_unary_expr(unary_expr),
             Expr::Variable(variable_expr) => self.visit_variable_expr(variable_expr),
@@ -116,15 +117,23 @@ impl Interpreter {
     fn visit_class_declaration_stmt(&mut self, class_declaration: &ClassDeclaration) -> Result<(), LoxErr> {
 
         let mut superclass = None;
+        let mut superclass_obj = Object::default();
         if let Some(exist_superclass) = &class_declaration.superclass {
-            let superclass_obj = self.visit_variable_expr(exist_superclass)?;
-            let Object::Class(lox_class) = superclass_obj else {
+            superclass_obj = self.visit_variable_expr(exist_superclass)?;
+            let Object::Class(lox_class) = superclass_obj.clone() else {
                 return Err(LoxErr::Runtime { line: exist_superclass.name.line, message: "Superclass must be a class.".to_string() });
             };
             superclass = Some(Box::new(lox_class));
         }
 
         self.get_env_mut().define(&class_declaration.name.lexeme, Object::None);
+
+        if class_declaration.superclass.is_some() {
+            let env = Environment::new();
+            env.borrow_mut().set_enclosing(Rc::clone(&self.environment));
+            self.environment = env;
+            self.get_env_mut().define("super", superclass_obj);
+        }
 
         let mut methods = HashMap::new();
         for method_decl in &class_declaration.methods {
@@ -133,6 +142,11 @@ impl Interpreter {
         }
         let class = LoxClass::new(class_declaration.name.lexeme.clone(), superclass, methods);
         
+        if class_declaration.superclass.is_some() {
+            let o_env = &self.get_env_mut().enclosing.clone().unwrap();
+            self.environment = Rc::clone(&o_env);
+        }
+
         self.get_env_mut().assign(&class_declaration.name, Object::Class(class))?;
         Ok(())
     }
@@ -287,6 +301,26 @@ impl Interpreter {
                 Ok(value)
             }
             _ => Err(LoxErr::Runtime { line: set_expr.name.line, message: "Only instances have fields.".to_string() }),
+        }
+    }
+
+    fn visit_super_expr(&mut self, super_expr: &SuperExpr) -> Result<Object, LoxErr> {
+        let distance = super_expr.get_distance().unwrap();
+        let superclass = self.get_env().get_at(distance, "super");
+
+        let object = self.get_env_mut().get_at(distance - 1, "this");   // 从某 instance . get 到 method 时，会创建一个绑定 this 的 closure
+        if let Object::Class(lox_class) = superclass {
+            let method = lox_class.find_method(&super_expr.method.lexeme);
+            if method.is_none() {
+                return Err(LoxErr::Runtime { line: super_expr.method.line, message: format!("Undefined property '{}'.", super_expr.method.lexeme) });
+            }
+            if let Object::Instance(instance) = object {
+                return Ok(Object::Function(method.unwrap().bind(instance)));
+            } else {
+                unreachable!("this is not instance, WTF?")
+            }
+        } else {
+            unreachable!("superclass is not class, visit_class_declaration_stmt bug?");
         }
     }
 

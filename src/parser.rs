@@ -3,7 +3,7 @@ use crate::stmt::{ClassDeclaration, FunctionDeclaration, Stmt};
 use crate::token::Token;
 use crate::object::Object;
 
-use crate::expr::{AssignExpr, CallExpr, Expr, GetExpr, LogicalExpr, SetExpr, ThisExpr};
+use crate::expr::{AssignExpr, CallExpr, Expr, GetExpr, LogicalExpr, SetExpr, SuperExpr, ThisExpr};
 use crate::expr::{BinaryExpr, GroupingExpr, LiteralExpr, UnaryExpr, VariableExpr};
 use crate::token_type::TokenType;
 
@@ -381,6 +381,15 @@ impl Parser<'_> {
             TokenType::This => {
                 self.advance();
                 Ok(Expr::This(ThisExpr::new(self.previous().clone())))
+            }
+
+            TokenType::Super => {
+                self.advance();
+                let keyword = self.previous().clone();
+                self.consume(&TokenType::Dot, "Expect '.' after 'super'.")?;
+                let method = self.consume(&TokenType::Identifier, "Expect superclass method name.")?.clone();
+
+                Ok(Expr::Super(SuperExpr::new(keyword, method)))
             }
 
             TokenType::Identifier => {

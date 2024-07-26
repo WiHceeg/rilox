@@ -14,7 +14,7 @@ pub enum Expr {
     Literal(LiteralExpr),
     Logical(LogicalExpr),
     Set(SetExpr),
-    // Super(SuperExpr),
+    Super(SuperExpr),
     This(ThisExpr),
     Unary(UnaryExpr),
     Variable(VariableExpr),
@@ -34,6 +34,7 @@ impl fmt::Display for Expr {
             Expr::Grouping(v) => v.fmt(f),
 
             Expr::Set(v) => v.fmt(f),
+            Expr::Super(v) => v.fmt(f),
             Expr::This(v) => v.fmt(f),
             Expr::Unary(v) => v.fmt(f),
             Expr::Variable(v) => v.fmt(f),
@@ -233,6 +234,42 @@ impl SetExpr {
 impl fmt::Display for SetExpr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "(={} {} {})", self.object, self.name.lexeme, self.value)
+    }
+}
+#[derive(Debug, PartialEq, Clone)]
+pub struct SuperExpr {
+    pub keyword: Token,
+    pub method: Token,
+    distance: Option<usize>,
+}
+
+impl SuperExpr {
+    pub fn new(keyword: Token, method: Token) -> SuperExpr {
+        SuperExpr {
+            keyword: keyword,
+            method: method,
+            distance: None,
+        }
+    }
+}
+
+impl fmt::Display for SuperExpr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "(super {})", self.method.lexeme)
+    }
+}
+
+impl Resolvable for SuperExpr {
+    fn name(&self) -> &Token {
+        &self.keyword
+    }
+
+    fn set_distance(&mut self, distance: usize) {
+        self.distance = Some(distance);
+    }
+
+    fn get_distance(&self) -> Option<usize> {
+        self.distance
     }
 }
 

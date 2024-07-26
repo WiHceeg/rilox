@@ -11,7 +11,7 @@ use crate::token::Token;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Environment {
-    enclosing: Option<Rc<RefCell<Environment>>>,
+    pub enclosing: Option<Rc<RefCell<Environment>>>,
     pub values: HashMap<String, Object>,
 }
 
