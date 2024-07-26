@@ -20,6 +20,7 @@ impl Scanner {
         Scanner {
             keywords: std::collections::HashMap::from([
                 ("and".to_string(), TokenType::And),
+                ("break".to_string(), TokenType::Break),
                 ("class".to_string(), TokenType::Class),
                 ("else".to_string(), TokenType::Else),
                 ("false".to_string(), TokenType::False),

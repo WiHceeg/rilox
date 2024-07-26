@@ -13,6 +13,7 @@ pub struct Resolver {
     scopes: Vec<HashMap<String, bool>>, // 作用域栈，scopes[i] 中值为 false 代表已经声明，true 代表已经定义
     current_function: FunctionType,
     current_class: ClassType,
+    is_in_loop: bool,
 }
 
 
@@ -24,6 +25,7 @@ impl Resolver {
             scopes: Vec::new(),
             current_function: FunctionType::None,
             current_class: ClassType::None,
+            is_in_loop: false,
         }
     }
 
@@ -39,6 +41,7 @@ impl Resolver {
     fn resolve_stmt(&mut self, stmt: &mut Stmt) -> Result<(), LoxErr> {
         match stmt {
             Stmt::Block { statements } => self.visit_block_stmt(statements),
+            Stmt::Break { keyword } => self.visit_break_stmt(keyword),
             Stmt::ClassDeclaration { class_declaration } => self.visit_class_declaration_stmt(class_declaration),
             Stmt::Expression { expression } => self.visit_expression_stmt(expression),
             Stmt::FunctionDeclaration { function_declaration } => self.visit_function_declaration_stmt(function_declaration),
@@ -127,6 +130,13 @@ impl Resolver {
         self.begin_scope();
         self.resolve(statements);
         self.end_scope();
+        Ok(())
+    }
+
+    fn visit_break_stmt(&mut self, keyword: &Token) -> Result<(), LoxErr> {
+        if !self.is_in_loop {
+            return Err(LoxErr::Resolve { line: keyword.line, message: "Can only use break inside a loop.".to_string() })
+        }
         Ok(())
     }
 
@@ -227,7 +237,11 @@ impl Resolver {
 
     fn visit_while_stmt(&mut self, condition: &mut Expr, body: &mut Box<Stmt>) -> Result<(), LoxErr> {
         self.resolve_expr(condition)?;
+
+        let is_already_in_loop = self.is_in_loop;
+        self.is_in_loop = true;
         self.resolve_stmt(body)?;
+        self.is_in_loop = is_already_in_loop;
         Ok(())
     }
 

@@ -82,6 +82,7 @@ impl Interpreter {
     fn execute(&mut self, stmt: &Stmt) -> Result<(), LoxErr>{
         match stmt {
             Stmt::Block { statements: stmts } => self.visit_block_stmt(stmts)?,
+            Stmt::Break { .. } => self.visit_break_stmt()?,
             Stmt::ClassDeclaration { class_declaration } => self.visit_class_declaration_stmt(class_declaration)?,
             Stmt::Expression{ expression: expr} => self.visit_expression_stmt(expr)?,
             Stmt::If { condition, then_branch, else_branch } => self.visit_if_stmt(condition, then_branch, else_branch)?,
@@ -114,6 +115,10 @@ impl Interpreter {
         let block_env = Environment::new();
         block_env.borrow_mut().set_enclosing(Rc::clone(&self.environment));
         self.execute_block(stmts, block_env)
+    }
+
+    fn visit_break_stmt(&mut self) -> Result<(), LoxErr> {
+        Err(LoxErr::RuntimeBreak)
     }
 
     fn visit_class_declaration_stmt(&mut self, class_declaration: &ClassDeclaration) -> Result<(), LoxErr> {
@@ -175,7 +180,11 @@ impl Interpreter {
 
     fn visit_while_stmt(&mut self, condition: &Expr, body: &Box<Stmt>) -> Result<(), LoxErr> {
         while Interpreter::is_truthy(&self.evaluate(condition)?) {
-            self.execute(body)?;
+            match self.execute(body) {
+                Ok(_) => (),
+                Err(LoxErr::RuntimeBreak) => break,
+                Err(other_lox_err) => return Err(other_lox_err),
+            }
         }
         Ok(())
     }

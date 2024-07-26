@@ -3,7 +3,7 @@
 后缀`+`与此类似，但要求前面的生成式至少出现一次
 后缀`?`表示可选生成式，它之前的生成式可以出现零次或一次，但不能出现多次
 
-expression     -> assignment ( "," assignment )*    // 支持了逗号表达式
+expression     -> assignment ( "," assignment )* ;    // 支持了逗号表达式
 assignment     → ( call "." )? IDENTIFIER "=" assignment
                | conditional ;
 conditional    → logic_or ( "?" expression ":" conditional )? ; // 三元表达式是右结合，因此 : 后面还是 conditional
@@ -43,7 +43,10 @@ statement      → exprStmt
                | printStmt
                | returnStmt
                | whileStmt
-               | block ;
+               | block
+               | breakStmt ;
+
+breakStmt      → "break" ";" ;
 
 returnStmt     → "return" expression? ";" ;
 forStmt        → "for" "(" ( varDecl | exprStmt | ";" )

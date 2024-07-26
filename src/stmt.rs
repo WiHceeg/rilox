@@ -6,7 +6,9 @@ pub enum Stmt {
     Block {
         statements: Vec<Stmt>,
     },
-    
+    Break {
+        keyword: Token,
+    },
     ClassDeclaration {
         class_declaration: ClassDeclaration,
     },

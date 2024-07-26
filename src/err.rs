@@ -36,6 +36,9 @@ pub enum LoxErr {
         ret_value: Object,
     },
 
+    #[error("RuntimeBreak")]
+    RuntimeBreak,
+
     #[error("Resolve Error: [line {line}] {message}")]
     Resolve{
         line: usize,

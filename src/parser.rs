@@ -110,7 +110,8 @@ impl Parser<'_> {
     }
 
     fn statement(&mut self) -> Result<Stmt, LoxErr> {
-        match self.get_match_type(&[TokenType::If, TokenType::Print, TokenType::Return, TokenType::While, TokenType::For, TokenType::LeftBrace,]) {
+        match self.get_match_type(&[TokenType::Break, TokenType::If, TokenType::Print, TokenType::Return, TokenType::While, TokenType::For, TokenType::LeftBrace,]) {
+            Some(TokenType::Break) => self.break_statement(),
             Some(TokenType::If) => self.if_statement(),
             Some(TokenType::Print) => self.print_statement(),
             Some(TokenType::Return) => self.return_statement(),
@@ -119,6 +120,13 @@ impl Parser<'_> {
             Some(TokenType::LeftBrace) => Ok(Stmt::Block { statements: self.block()? }),
             _ => self.expression_statement(),   // None
         }
+    }
+
+    fn break_statement(&mut self) -> Result<Stmt, LoxErr> {
+        let keyword = self.previous().clone();
+
+        self.consume(&TokenType::Semicolon, "Expect ';' after break.")?;
+        Ok(Stmt::Break { keyword: keyword })
     }
 
     fn if_statement(&mut self) -> Result<Stmt, LoxErr> {
