@@ -16,7 +16,7 @@ pub struct Scanner {
 
 
 impl Scanner {
-    pub fn new(source: &str) -> Scanner {
+    pub fn new() -> Scanner {
         Scanner {
             keywords: std::collections::HashMap::from([
                 ("and".to_string(), TokenType::And),
@@ -37,12 +37,20 @@ impl Scanner {
                 ("var".to_string(), TokenType::Var),
                 ("while".to_string(), TokenType::While),
             ]),
-            source: source.chars().collect(),
+            source: Vec::new(),
             tokens: Vec::new(),
             start: 0,
             current: 0,
             line: 1,
         }
+    }
+
+    pub fn load_code(&mut self, code: &str) {
+        self.source = code.chars().collect();
+        self.tokens.clear();
+        self.start = 0;
+        self.current = 0;
+        self.line = 1;
     }
 
     pub fn scan_tokens(&mut self) -> Result<(), LoxErr> {

@@ -71,12 +71,14 @@ use crate::scanner::Scanner;
 
 pub struct Lox {
     interpreter: Interpreter,
+    scanner: Scanner,
 }
 
 impl Lox {
     pub fn new() -> Lox {
         Lox {
             interpreter: Interpreter::new(),
+            scanner: Scanner::new(),
         }
     }
     pub fn start(&mut self) {
@@ -141,13 +143,13 @@ impl Lox {
     fn run(&mut self, code: &str) -> Result<(), LoxErr> {
         
         // 扫描遇到错误的话，在这里打印出来，并继续处理 token
-        let mut scanner = Scanner::new(code);
-        if let Err(scan_err) = scanner.scan_tokens() {
+        self.scanner.load_code(code);
+        if let Err(scan_err) = self.scanner.scan_tokens() {
             self.report_error(scan_err);
         }
 
         // 解析（语法分析）遇到错误的话，内部会处理
-        let mut parser = Parser::new(&scanner.tokens);
+        let mut parser = Parser::new(&self.scanner.tokens);
         let mut statements = parser.parse();
         
         // 语义分析遇到错误的话，内部会处理，并停止
