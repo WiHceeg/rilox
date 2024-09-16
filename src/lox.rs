@@ -72,6 +72,8 @@ use crate::scanner::Scanner;
 pub struct Lox {
     interpreter: Interpreter,
     scanner: Scanner,
+    parser: Parser,
+    resolver: Resolver,
 }
 
 impl Lox {
@@ -79,6 +81,8 @@ impl Lox {
         Lox {
             interpreter: Interpreter::new(),
             scanner: Scanner::new(),
+            parser: Parser::new(),
+            resolver: Resolver::new(),
         }
     }
     pub fn start(&mut self) {
@@ -149,13 +153,14 @@ impl Lox {
         }
 
         // 解析（语法分析）遇到错误的话，内部会处理
-        let mut parser = Parser::new(&self.scanner.tokens);
-        let mut statements = parser.parse();
+        let tokens = std::mem::take(&mut self.scanner.tokens);
+        self.parser.load_tokens(tokens);
+        let mut statements = self.parser.parse();
         
         // 语义分析遇到错误的话，内部会处理，并停止
-        let mut resolver = Resolver::new();
-        resolver.resolve(&mut statements);
-        if resolver.had_resolve_error {
+        self.resolver.reset();
+        self.resolver.resolve(&mut statements);
+        if self.resolver.had_resolve_error {
             return Ok(())
         }
 
@@ -173,5 +178,4 @@ impl Lox {
         eprintln!("{}", lox_err)
     }
 
-    
 }

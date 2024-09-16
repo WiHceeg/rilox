@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::default;
 
 
 use crate::err::LoxErr;
@@ -16,10 +17,8 @@ pub struct Resolver {
     is_in_loop: bool,
 }
 
-
-impl Resolver {
-
-    pub fn new() -> Resolver {
+impl Default for Resolver {
+    fn default() -> Self {
         Resolver {
             had_resolve_error: false,
             scopes: Vec::new(),
@@ -27,6 +26,16 @@ impl Resolver {
             current_class: ClassType::None,
             is_in_loop: false,
         }
+    }
+}
+
+impl Resolver {
+    pub fn new() -> Resolver {
+        Default::default()
+    }
+
+    pub fn reset(&mut self) {
+        *self = Default::default();
     }
 
     pub fn resolve(&mut self, statements: &mut Vec<Stmt>) {

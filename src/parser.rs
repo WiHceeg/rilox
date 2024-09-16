@@ -8,15 +8,22 @@ use crate::expr::{BinaryExpr, GroupingExpr, LiteralExpr, UnaryExpr, VariableExpr
 use crate::token_type::TokenType;
 
 
-pub struct Parser<'a> {
-    tokens: &'a Vec<Token>,
+pub struct Parser{
+    tokens: Vec<Token>,
     current: usize,
 }
 
-impl Parser<'_> {
+impl Parser {
 
-    pub fn new(tokens: &Vec<Token>) -> Parser {
-        Parser { tokens, current: 0 }
+    pub fn new() -> Parser {
+        Parser { 
+            tokens: Vec::new(), 
+            current: 0,
+        }
+    }
+
+    pub fn load_tokens(&mut self, tokens: Vec<Token>) {
+        self.tokens = tokens;
     }
 
     pub fn parse(&mut self) -> Vec<Stmt> {
