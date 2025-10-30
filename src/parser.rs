@@ -242,6 +242,7 @@ impl Parser {
         Ok(Stmt::Var { name: name, initializer: initializer })
     }
 
+    // 不包括关键字 fun 的函数声明
     fn function_declaration(&mut self, kind: &str) -> Result<Stmt, LoxErr> {
         let name = self.consume(&TokenType::Identifier, &format!("Expect {} name.", kind))?.clone();
         self.consume(&TokenType::LeftParen, &format!("Expect '(' after {} name.", kind))?;
@@ -360,7 +361,7 @@ impl Parser {
     fn call(&mut self) -> Result<Expr, LoxErr> {
         let mut expr = self.primary()?;
 
-        // 这里有个 loop，是因为一个 call 的结果可能也是 callee，比如f1(a1, a2) 的结果是 f2，可以 f1(a1, a2)(b1, b2) 这样调用。加了 . 后可能是 a.b.c(d)e(f,g).h
+        // 这里有个 loop，是因为一个 call 的结果可能也是 callee，比如f1(a1, a2) 的结果是 f2，可以 f1(a1, a2)(b1, b2) 这样调用。加了 . 后可能是 a.b.c(d).e(f,g).h
         loop {
             // if self.matches(&[TokenType::LeftParen]) {
             //     expr = self.finish_call(expr)?;

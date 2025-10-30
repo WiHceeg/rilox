@@ -1,6 +1,4 @@
 use std::collections::HashMap;
-use std::default;
-
 
 use crate::err::LoxErr;
 use crate::expr::{AssignExpr, BinaryExpr, CallExpr, CommaExpr, ConditionalExpr, Expr, GetExpr, GroupingExpr, LogicalExpr, SetExpr, SuperExpr, ThisExpr, UnaryExpr, VariableExpr};

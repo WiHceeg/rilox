@@ -109,7 +109,7 @@ impl fmt::Display for BinaryExpr {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct CallExpr {
-    pub callee: Box<Expr>,  // 这个 Expr 应该是 Variable
+    pub callee: Box<Expr>,  // 这个 Expr 一般应该是 Variable，多级情况也是 CallExpr
     pub paren: Token,
     pub arguments: Vec<Expr>,
 }

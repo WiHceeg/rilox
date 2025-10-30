@@ -24,13 +24,13 @@ primary        → "true" | "false" | "nil" | "this"
 /*
 program        → declaration* EOF ;
 
-declaration    → classDecl      // 类的方法没有前导的`fun`关键字
+declaration    → classDecl
                | funDecl
                | varDecl
                | statement ;
 
 classDecl      → "class" IDENTIFIER ( "<" IDENTIFIER )?
-                 "{" function* "}" ;
+                 "{" function* "}" ;        // 注意类的方法没有前导的`fun`关键字
 funDecl        → "fun" function ;
 function       → IDENTIFIER "(" parameters? ")" block ;
 parameters     → IDENTIFIER ( "," IDENTIFIER )* ;
