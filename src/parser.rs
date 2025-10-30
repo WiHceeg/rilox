@@ -24,6 +24,7 @@ impl Parser {
 
     pub fn load_tokens(&mut self, tokens: Vec<Token>) {
         self.tokens = tokens;
+        self.current = 0;
     }
 
     pub fn parse(&mut self) -> Vec<Stmt> {
